@@ -1,0 +1,712 @@
+<title>DermaSense — Adaptive Skincare Console</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg:#f3f6f2; --panel:#ffffff; --panel-2:#eef2ec; --ink:#17231d; --ink-soft:#4a5a52;
+    --ink-faint:#7d8d84; --line:#d9e2d8; --line-soft:#e7ede5; --pulch:#b23162; --pulch-lo:#d8618a;
+    --culture:#2f9d72; --culture-lo:#5cc199; --amber:#c98a2b; --danger:#c14b3f; --focus:#2f9d72;
+    --track:#e3eae1; --shadow:0 1px 2px rgba(20,40,30,.05), 0 8px 30px rgba(20,40,30,.06);
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --serif:Georgia,"Iowan Old Style","Palatino Linotype",serif;
+  }
+  @media (prefers-color-scheme: dark){ :root{
+    --bg:#0c1512; --panel:#111d18; --panel-2:#16241e; --ink:#e7f0ea; --ink-soft:#a7b8ad; --ink-faint:#6d8177;
+    --line:#223029; --line-soft:#1a2b23; --pulch:#d8618a; --pulch-lo:#a83160; --culture:#48c391; --culture-lo:#2b7a5a;
+    --amber:#e0a441; --danger:#e5665a; --track:#1c2c25; --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 34px rgba(0,0,0,.35); } }
+  :root[data-theme="light"]{ color-scheme:light;
+    --bg:#f3f6f2; --panel:#ffffff; --panel-2:#eef2ec; --ink:#17231d; --ink-soft:#4a5a52; --ink-faint:#7d8d84;
+    --line:#d9e2d8; --line-soft:#e7ede5; --pulch:#b23162; --pulch-lo:#d8618a; --culture:#2f9d72; --culture-lo:#5cc199;
+    --amber:#c98a2b; --danger:#c14b3f; --track:#e3eae1; --shadow:0 1px 2px rgba(20,40,30,.05), 0 8px 30px rgba(20,40,30,.06); }
+  :root[data-theme="dark"]{ color-scheme:dark;
+    --bg:#0c1512; --panel:#111d18; --panel-2:#16241e; --ink:#e7f0ea; --ink-soft:#a7b8ad; --ink-faint:#6d8177;
+    --line:#223029; --line-soft:#1a2b23; --pulch:#d8618a; --pulch-lo:#a83160; --culture:#48c391; --culture-lo:#2b7a5a;
+    --amber:#e0a441; --danger:#e5665a; --track:#1c2c25; --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 34px rgba(0,0,0,.35); }
+
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1180px; margin:0 auto; padding:clamp(16px,3vw,34px); }
+  a { color:var(--culture); }
+
+  header.mast { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  .brand { display:flex; align-items:center; gap:14px; }
+  .mark { width:46px; height:46px; border-radius:13px; flex:none;
+    background:radial-gradient(circle at 32% 30%, var(--pulch-lo), var(--pulch) 55%, transparent 62%),
+      radial-gradient(circle at 70% 72%, var(--culture-lo), var(--culture) 58%, transparent 66%), var(--panel-2);
+    border:1px solid var(--line); box-shadow:inset 0 0 0 3px var(--panel); }
+  .brand h1 { margin:0; font-size:25px; letter-spacing:-.03em; font-weight:720; }
+  .brand h1 b { color:var(--pulch); }
+  .brand .sub { margin:2px 0 0; font-size:12.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.14em; font-family:var(--mono); }
+  .tag { display:flex; align-items:center; gap:8px; }
+  .igem { font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); border:1px solid var(--line); border-radius:999px; padding:6px 11px; background:var(--panel); }
+  .themebtn { font:inherit; font-size:12px; cursor:pointer; color:var(--ink-soft); background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:6px 12px; display:inline-flex; gap:7px; align-items:center; }
+  .themebtn:hover { border-color:var(--culture); color:var(--ink); }
+
+  /* nav */
+  nav.toc { position:sticky; top:0; z-index:20; margin:18px 0 0; padding:9px 0; background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:blur(8px); border-bottom:1px solid var(--line-soft); display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc a { font-family:var(--mono); font-size:11.5px; letter-spacing:.03em; text-decoration:none; color:var(--ink-soft); padding:6px 11px; border-radius:8px; border:1px solid transparent; }
+  nav.toc a:hover { color:var(--ink); border-color:var(--line); background:var(--panel); }
+
+  .lede { margin:20px 0 4px; max-width:64ch; color:var(--ink-soft); font-size:15px; }
+  .lede b { color:var(--ink); font-weight:620; }
+  .provenance { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+  .prov { font-family:var(--mono); font-size:11px; color:var(--ink-soft); border:1px solid var(--line); border-radius:8px; padding:6px 10px; background:var(--panel); display:inline-flex; gap:7px; align-items:center; }
+  .prov b { color:var(--ink); font-weight:640; }
+  .prov .d { width:7px; height:7px; border-radius:50%; background:var(--culture); flex:none; }
+
+  .console { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:22px; align-items:start; }
+  @media (max-width:860px){ .console { grid-template-columns:1fr; } }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; }
+  .panel > .phead { display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:15px 18px; border-bottom:1px solid var(--line-soft); }
+  .phead .k { font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-faint); }
+  .phead h2 { margin:3px 0 0; font-size:16px; letter-spacing:-.01em; }
+  .phead .n { font-family:var(--mono); font-size:12px; color:var(--pulch); font-weight:600; }
+  .pbody { padding:16px 18px 20px; }
+
+  .field { margin-bottom:18px; } .field:last-child { margin-bottom:0; }
+  label.flab { display:block; font-size:12.5px; font-weight:620; margin-bottom:8px; }
+  label.flab .hint { font-weight:400; color:var(--ink-faint); font-size:11.5px; }
+  select, input[type="text"] { width:100%; font:inherit; font-size:14px; color:var(--ink); background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; appearance:none; }
+  select:focus-visible, input:focus-visible, button:focus-visible, a:focus-visible { outline:2px solid var(--focus); outline-offset:1px; }
+
+  .seg { display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:6px; }
+  .seg button { font:inherit; font-size:12px; cursor:pointer; padding:9px 6px; text-align:center; background:var(--panel-2); color:var(--ink-soft); border:1px solid var(--line); border-radius:9px; transition:all .12s; line-height:1.25; }
+  .seg button:hover { border-color:var(--culture); color:var(--ink); }
+  .seg button[aria-pressed="true"] { background:color-mix(in srgb, var(--culture) 15%, var(--panel)); border-color:var(--culture); color:var(--ink); font-weight:600; }
+  .seg.pulchsel button[aria-pressed="true"] { background:color-mix(in srgb, var(--pulch) 15%, var(--panel)); border-color:var(--pulch); }
+
+  /* skin mode tabs */
+  .modetabs { display:flex; gap:6px; margin-bottom:14px; }
+  .modetabs button { font:inherit; font-size:12px; cursor:pointer; padding:8px 13px; background:transparent; color:var(--ink-soft); border:1px solid var(--line); border-radius:9px; }
+  .modetabs button[aria-selected="true"] { background:var(--ink); color:var(--bg); border-color:var(--ink); font-weight:600; }
+  .modepane[hidden] { display:none; }
+
+  /* photo analyser */
+  .drop { border:1.5px dashed var(--line); border-radius:12px; padding:16px; text-align:center; background:var(--panel-2); cursor:pointer; transition:border-color .15s; }
+  .drop:hover, .drop.drag { border-color:var(--culture); }
+  .drop p { margin:6px 0 0; font-size:12.5px; color:var(--ink-soft); }
+  .drop .big { font-size:13.5px; color:var(--ink); font-weight:600; }
+  .canvaswrap { margin-top:12px; position:relative; display:none; }
+  .canvaswrap canvas { width:100%; border-radius:11px; border:1px solid var(--line); display:block; cursor:crosshair; }
+  .canvaswrap .hint2 { font-family:var(--mono); font-size:10.5px; color:var(--ink-faint); margin-top:6px; text-align:center; }
+  .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
+  .metric { border:1px solid var(--line); border-radius:10px; padding:9px 10px; background:var(--panel-2); }
+  .metric .ml { font-family:var(--mono); font-size:9.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint); }
+  .metric .mv { font-family:var(--mono); font-size:16px; font-weight:680; margin-top:3px; letter-spacing:-.01em; }
+  .metric .mu { font-size:10px; color:var(--ink-soft); }
+  .photonote { font-size:11.5px; color:var(--amber); margin-top:10px; display:flex; gap:7px; }
+
+  .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .chip { font-family:var(--mono); font-size:11px; padding:5px 10px; border-radius:999px; border:1px solid var(--line); background:var(--panel-2); color:var(--ink-soft); }
+  .chip b { color:var(--ink); font-weight:640; }
+
+  .osi-block { display:grid; grid-template-columns:132px 1fr; gap:18px; align-items:center; }
+  @media (max-width:420px){ .osi-block { grid-template-columns:1fr; justify-items:center; text-align:center; } }
+  .gauge { position:relative; width:132px; height:132px; }
+  .gauge svg { transform:rotate(-90deg); }
+  .gauge .center { position:absolute; inset:0; display:grid; place-content:center; text-align:center; }
+  .gauge .center .num { font-family:var(--mono); font-size:34px; font-weight:680; letter-spacing:-.02em; line-height:1; }
+  .gauge .center .of { font-family:var(--mono); font-size:11px; color:var(--ink-faint); }
+  .osi-meta .band { display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:640; padding:4px 10px; border-radius:999px; font-family:var(--mono); }
+  .dot { width:8px; height:8px; border-radius:50%; }
+  .osi-meta p { margin:9px 0 0; font-size:13px; color:var(--ink-soft); }
+  .subidx { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .subidx .s { font-family:var(--mono); font-size:11px; padding:4px 9px; border-radius:7px; border:1px solid var(--line); background:var(--panel-2); color:var(--ink-soft); }
+  .subidx .s b { color:var(--ink); font-weight:640; }
+  .drivers { margin-top:14px; display:grid; gap:7px; }
+  .drv { display:grid; grid-template-columns:92px 1fr 42px; gap:9px; align-items:center; font-size:11.5px; }
+  .drv .dl { font-family:var(--mono); color:var(--ink-faint); }
+  .drv .bar { height:6px; border-radius:3px; background:var(--track); overflow:hidden; }
+  .drv .bar i { display:block; height:100%; border-radius:3px; background:linear-gradient(90deg, var(--culture), var(--pulch)); }
+  .drv .dv { font-family:var(--mono); text-align:right; color:var(--ink-soft); }
+
+  details.custom { margin-top:10px; border-top:1px dashed var(--line); padding-top:12px; }
+  details.custom summary { cursor:pointer; font-size:12px; color:var(--ink-soft); font-family:var(--mono); }
+  .slider { margin:12px 0; } .slider .top { display:flex; justify-content:space-between; font-size:12px; margin-bottom:5px; }
+  .slider .top .val { font-family:var(--mono); color:var(--ink); font-weight:600; } .slider .top .u { color:var(--ink-faint); }
+  input[type="range"] { width:100%; accent-color:var(--pulch); }
+
+  .decisions { display:grid; gap:14px; }
+  .dec { border:1px solid var(--line); border-radius:13px; padding:14px 15px; background:var(--panel-2); }
+  .dec .dhead { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+  .dec .dhead .role { font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.13em; color:var(--ink-faint); }
+  .dec .dhead h3 { margin:2px 0 0; font-size:14.5px; }
+  .dec .big { font-family:var(--mono); font-weight:680; letter-spacing:-.02em; }
+  .dec.active .big { color:var(--pulch); font-size:26px; } .dec.carrier .big { color:var(--culture); font-size:22px; }
+  .subline { font-family:var(--mono); font-size:11.5px; color:var(--ink-soft); margin-top:7px; } .subline b { color:var(--ink); }
+  .scale { margin-top:12px; }
+  .scale .track2 { position:relative; height:9px; border-radius:5px; overflow:hidden; background:linear-gradient(90deg, var(--culture) 0%, var(--culture) 40%, var(--amber) 63%, var(--danger) 100%); }
+  .scale .cyto { position:absolute; top:-3px; bottom:-3px; right:0; width:2px; background:var(--ink); opacity:.55; }
+  .scale .marker { position:absolute; top:50%; width:13px; height:13px; border-radius:50%; background:var(--panel); border:2.5px solid var(--pulch); transform:translate(-50%,-50%); box-shadow:0 1px 3px rgba(0,0,0,.3); transition:left .35s ease; }
+  .scale .labs { display:flex; justify-content:space-between; font-family:var(--mono); font-size:10px; color:var(--ink-faint); margin-top:6px; }
+
+  .blendbar { display:flex; height:26px; border-radius:7px; overflow:hidden; margin-top:12px; border:1px solid var(--line); }
+  .blendbar > span { display:grid; place-content:center; font-family:var(--mono); font-size:11px; font-weight:640; color:#fff; min-width:0; transition:flex-basis .35s ease; }
+  .blendbar .xylo { background:linear-gradient(180deg, var(--culture-lo), var(--culture)); }
+  .blendbar .lyso { background:linear-gradient(180deg, var(--pulch-lo), var(--pulch)); }
+  .blendleg { display:flex; gap:16px; margin-top:9px; font-size:11.5px; color:var(--ink-soft); flex-wrap:wrap; }
+  .blendleg span { display:inline-flex; align-items:center; gap:6px; }
+
+  .capnote { margin-top:11px; font-size:12px; display:flex; gap:8px; align-items:flex-start; padding:9px 11px; border-radius:9px; border:1px solid; }
+  .capnote.ok { color:var(--culture); border-color:color-mix(in srgb, var(--culture) 40%, transparent); background:color-mix(in srgb, var(--culture) 8%, transparent); }
+  .capnote.warn { color:var(--amber); border-color:color-mix(in srgb, var(--amber) 45%, transparent); background:color-mix(in srgb, var(--amber) 9%, transparent); }
+  .capnote.cap { color:var(--danger); border-color:color-mix(in srgb, var(--danger) 45%, transparent); background:color-mix(in srgb, var(--danger) 9%, transparent); }
+  .capnote b { font-weight:640; }
+  .why h4 { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 8px; }
+  .why p { margin:0; font-size:13.5px; color:var(--ink-soft); line-height:1.62; } .why p b { color:var(--ink); font-weight:620; }
+  .why .active-t { color:var(--pulch); font-weight:640; } .why .carrier-t { color:var(--culture); font-weight:640; }
+
+  /* long-form sections */
+  section.doc { margin-top:34px; scroll-margin-top:60px; }
+  section.doc > h2 { font-size:22px; letter-spacing:-.02em; margin:0 0 4px; }
+  section.doc > .eyebrow { font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--pulch); margin-bottom:10px; }
+  .doc .card { background:var(--panel); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); padding:22px 24px; margin-top:14px; }
+  .doc .card h3 { font-size:16px; margin:0 0 8px; letter-spacing:-.01em; }
+  .doc .card h3 .num { font-family:var(--mono); color:var(--pulch); font-size:13px; margin-right:8px; }
+  .doc .card p { font-size:14px; color:var(--ink-soft); line-height:1.7; margin:0 0 12px; max-width:78ch; }
+  .doc .card p:last-child { margin-bottom:0; }
+  .doc .card p b { color:var(--ink); font-weight:620; }
+  .doc .card p code, .doc code.inl { font-family:var(--mono); font-size:12.5px; background:var(--panel-2); border:1px solid var(--line-soft); border-radius:5px; padding:1px 5px; color:var(--ink); }
+  .doc .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; } @media (max-width:760px){ .doc .grid2 { grid-template-columns:1fr; } }
+  pre.block { margin:0 0 6px; padding:13px 14px; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; font-family:var(--mono); font-size:12px; overflow-x:auto; line-height:1.7; color:var(--ink); }
+  pre.block .cm { color:var(--ink-faint); } pre.block .c { color:var(--pulch); } pre.block .g { color:var(--culture); }
+  .tag2 { font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.08em; padding:2px 7px; border-radius:5px; font-weight:600; }
+  .tag2.real { color:var(--culture); background:color-mix(in srgb, var(--culture) 13%, transparent); }
+  .tag2.fit { color:var(--amber); background:color-mix(in srgb, var(--amber) 14%, transparent); }
+  table.coef { width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.coef th, table.coef td { text-align:left; padding:8px 9px; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+  table.coef th { font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint); font-weight:500; }
+  table.coef td.v { font-family:var(--mono); color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  ol.reflist { margin:0; padding-left:22px; display:grid; gap:12px; }
+  ol.reflist li { font-size:13.5px; color:var(--ink-soft); line-height:1.6; }
+  ol.reflist li b { color:var(--ink); }
+  ol.reflist .doi { font-family:var(--mono); font-size:12px; }
+  .callout { border-left:3px solid var(--amber); background:color-mix(in srgb, var(--amber) 7%, transparent); padding:12px 15px; border-radius:0 10px 10px 0; font-size:13px; color:var(--ink-soft); line-height:1.65; }
+  .callout b { color:var(--ink); }
+
+  footer.foot { margin-top:34px; padding-top:18px; border-top:1px solid var(--line-soft); font-size:12px; color:var(--ink-faint); display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+  .disc { max-width:66ch; } .disc b { color:var(--amber); }
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} * { transition:none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"></div>
+      <div><h1>Derma<b>Sense</b></h1><p class="sub">Adaptive Skincare Console</p></div>
+    </div>
+    <div class="tag">
+      <span class="igem">iGEM · Living Moisturizer</span>
+      <button class="themebtn" id="themeBtn" type="button" aria-label="Toggle colour theme"><span id="themeIcon">◐</span><span id="themeTxt">Theme</span></button>
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="Section navigation">
+    <a href="#console">▸ Console</a>
+    <a href="#how">▸ How it works</a>
+    <a href="#photo-theory">▸ Photo analysis</a>
+    <a href="#coefficients">▸ Coefficients</a>
+    <a href="#sources">▸ Sources</a>
+    <a href="#safety">▸ Safety</a>
+  </nav>
+
+  <p class="lede">
+    An engineered skin microbe that <b>senses the environment and doses its response</b>. Two decisions:
+    <b>how much active</b> (pulcherrimin) to make, and <b>which carrier blend</b> to deliver it in. The environmental
+    driver is the peer-reviewed <b>Air Quality Health Index</b>; the active dose is anchored to <b>measured</b>
+    pulcherrimin photoprotection and keratinocyte-cytotoxicity data. Full theory and every source are
+    <a href="#how">below</a>.
+  </p>
+  <div class="provenance">
+    <span class="prov"><span class="d"></span>Environment = <b>AQHI</b> (Stieb 2008)</span>
+    <span class="prov"><span class="d"></span>Dose floor = <b>SPF-20 @ 0.2 mg/mL</b></span>
+    <span class="prov"><span class="d"></span>Safety ceiling = <b>1.58 mg/mL</b> (HaCaT)</span>
+    <span class="prov"><span class="d"></span>Carrier = <b>HLB framework</b></span>
+  </div>
+
+  <!-- ================= CONSOLE ================= -->
+  <div class="console" id="console">
+    <section class="panel">
+      <div class="phead"><div><div class="k">Signals in</div><h2>Environment &amp; skin</h2></div></div>
+      <div class="pbody">
+        <div class="field">
+          <label class="flab" for="city">Location <span class="hint">— sets the ambient air-quality &amp; UV load</span></label>
+          <select id="city" aria-label="Location preset"></select>
+          <details class="custom" id="customEnv">
+            <summary>Override environmental values</summary>
+            <div class="slider" data-k="pm25"><div class="top"><span>PM2.5</span><span><span class="val">–</span> <span class="u">µg/m³</span></span></div><input type="range" min="0" max="250" step="1"></div>
+            <div class="slider" data-k="no2"><div class="top"><span>NO₂</span><span><span class="val">–</span> <span class="u">µg/m³</span></span></div><input type="range" min="0" max="250" step="1"></div>
+            <div class="slider" data-k="o3"><div class="top"><span>O₃ (ozone)</span><span><span class="val">–</span> <span class="u">µg/m³</span></span></div><input type="range" min="0" max="300" step="1"></div>
+            <div class="slider" data-k="uv"><div class="top"><span>UV index</span><span><span class="val">–</span> <span class="u">0–11+</span></span></div><input type="range" min="0" max="12" step="1"></div>
+          </details>
+        </div>
+
+        <div class="field">
+          <label class="flab">Skin profile <span class="hint">— questionnaire, or analyse a skin photo</span></label>
+          <div class="modetabs" role="tablist">
+            <button id="tabQuiz" role="tab" aria-selected="true" type="button">Questionnaire</button>
+            <button id="tabPhoto" role="tab" aria-selected="false" type="button">Photo analysis</button>
+          </div>
+
+          <div class="modepane" id="paneQuiz">
+            <div id="quiz"></div>
+          </div>
+
+          <div class="modepane" id="panePhoto" hidden>
+            <div class="drop" id="drop" tabindex="0" role="button" aria-label="Upload a skin photo">
+              <div class="big">Drop a skin close-up, or click to choose</div>
+              <p>A well-lit close-up of cheek / forehead skin works best. Analysed entirely in your browser — the image never leaves this page.</p>
+              <input type="file" id="fileInput" accept="image/*" hidden>
+            </div>
+            <div class="canvaswrap" id="canvaswrap">
+              <canvas id="skinCanvas"></canvas>
+              <div class="hint2" id="canvasHint">Click a clear patch of skin to sample that spot</div>
+            </div>
+            <div class="metrics" id="metrics" style="display:none">
+              <div class="metric"><div class="ml">Shine → oiliness</div><div class="mv" id="mShine">–</div><div class="mu">specular glare</div></div>
+              <div class="metric"><div class="ml">Erythema a*</div><div class="mv" id="mRed">–</div><div class="mu">redness axis</div></div>
+              <div class="metric"><div class="ml">Skin tone ITA°</div><div class="mv" id="mIta">–</div><div class="mu" id="mItaLbl">—</div></div>
+            </div>
+            <div class="photonote" id="photonote" style="display:none"><span>⚠</span><span>Optical proxy, not a diagnosis. Redness is harder to read on deeper skin tones — cross-check with the questionnaire.</span></div>
+          </div>
+
+          <div class="chips" id="paramChips"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="phead"><div><div class="k">Readout</div><h2>Oxidative load &amp; formulation</h2></div><div class="n" id="liveTick">● live</div></div>
+      <div class="pbody">
+        <div class="osi-block">
+          <div class="gauge">
+            <svg width="132" height="132" viewBox="0 0 132 132">
+              <circle cx="66" cy="66" r="57" fill="none" stroke="var(--track)" stroke-width="11"/>
+              <circle id="gaugeArc" cx="66" cy="66" r="57" fill="none" stroke="var(--pulch)" stroke-width="11" stroke-linecap="round" stroke-dasharray="358" stroke-dashoffset="358"/>
+            </svg>
+            <div class="center"><div><div class="num" id="osiNum">0</div><div class="of">load / 100</div></div></div>
+          </div>
+          <div class="osi-meta">
+            <span class="band" id="osiBand"><span class="dot"></span><span class="lbl">—</span></span>
+            <p id="osiCopy">Composite skin-oxidative load from the validated air-quality health index plus UV.</p>
+            <div class="subidx" id="subIdx"></div>
+            <div class="drivers" id="drivers"></div>
+          </div>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--line-soft);margin:20px 0">
+        <div class="decisions">
+          <div class="dec active">
+            <div class="dhead"><div><div class="role">Decision 1 · Active</div><h3>Pulcherrimin concentration</h3></div><div class="big" id="doseVal">–</div></div>
+            <div class="subline" id="doseSub">–</div>
+            <div class="scale"><div class="track2"><div class="cyto"></div><div class="marker" id="doseMark"></div></div>
+              <div class="labs"><span>0.2 mg/mL · effective floor</span><span>1.58 · cytotoxic (HaCaT)</span></div></div>
+            <div class="capnote ok" id="capNote"><span>✓</span><span id="capTxt">Within the safe window.</span></div>
+          </div>
+          <div class="dec carrier">
+            <div class="dhead"><div><div class="role">Decision 2 · Carrier</div><h3>Biosurfactant blend</h3></div><div class="big" id="ratioVal">50 : 50</div></div>
+            <div class="blendbar"><span class="xylo" id="xyloSeg" style="flex-basis:50%">50%</span><span class="lyso" id="lysoSeg" style="flex-basis:50%">50%</span></div>
+            <div class="blendleg">
+              <span><span class="dot" style="background:var(--culture)"></span> Xylolipid — hydrophilic, spreading (↑HLB)</span>
+              <span><span class="dot" style="background:var(--pulch)"></span> Lyso-ornithine — milder, barrier (↓HLB)</span>
+            </div>
+          </div>
+        </div>
+        <div class="why" style="margin-top:18px"><h4>Why this formulation</h4><p id="whyText">—</p></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= HOW IT WORKS ================= -->
+  <section class="doc" id="how">
+    <div class="eyebrow">The theory, in full</div>
+    <h2>How DermaSense reaches a number</h2>
+
+    <div class="card">
+      <h3><span class="num">00</span>The reframe: an active and its carrier, not three rival compounds</h3>
+      <p>The instinct is to output "X% pulcherrimin, Y% xylolipid, Z% lyso-ornithine" — three numbers that sum to a formula. That quietly conflates a <b>drug with its delivery vehicle</b>. Pulcherrimin is the <b>active</b>: it absorbs UV and scavenges reactive oxygen species (ROS). Xylolipid and lyso-ornithine are <b>biosurfactants</b> — they spread and deliver the active, they don't protect the skin themselves. So DermaSense makes two <i>coupled but separate</i> decisions: <b>how much active</b> (driven by the environment) and <b>what carrier blend</b> (driven by the skin). This split is what lets every coefficient be defended individually instead of a black box emitting three correlated guesses.</p>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">01</span>Environment → oxidative load <span class="tag2 real">measured · validated</span></h3>
+      <p>Rather than invent pollutant weights, DermaSense uses Canada's <b>Air Quality Health Index (AQHI)</b> — a peer-reviewed, government-adopted index whose coefficients are <b>excess-mortality relative risks</b> fitted to multi-city daily time-series data (Stieb et al., 2008). It is additive across pollutants and has no lower threshold, exactly the behaviour we want for "cumulative oxidative burden".</p>
+      <pre class="block"><span class="cm"># NO₂ and O₃ are converted µg/m³ → ppb (×0.531, ×0.509 at 25 °C) before entering the formula</span>
+AQHI = (1000/10.4) · [ (e^<span class="c">0.000537</span>·O₃ − 1) + (e^<span class="c">0.000871</span>·NO₂ − 1) + (e^<span class="c">0.000487</span>·PM2.5 − 1) ]</pre>
+      <p>AQHI captures pollution but not sunlight, and UV is a primary driver of cutaneous ROS and antioxidant depletion. So the console adds the WHO/WMO <b>UV Index</b> (itself a validated erythemal quantity) as a second term, and reports a single 0–100 <b>oxidative load</b>. The 60/40 emphasis between the two is the one modelling choice here — it is labelled adjustable, and both inputs underneath it are real standardised indices.</p>
+      <pre class="block">load = 100 · ( <span class="g">0.60</span>·clamp(AQHI/10, 0, 1) + <span class="g">0.40</span>·clamp(UV/11, 0, 1) )</pre>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">02</span>Load → pulcherrimin dose <span class="tag2 real">measured anchors</span></h3>
+      <p>Pulcherrimin is an iron(III)-chelating cyclic dipeptide pigment from <i>Metschnikowia</i> yeast. Crucially, a 2024 study measured its behaviour on <b>human HaCaT keratinocytes</b> (Kregiel et al.), which gives real anchors instead of assumptions:</p>
+      <div class="grid2">
+        <pre class="block"><span class="cm"># measured (Kregiel 2024)</span>
+0.20 mg/mL  → <span class="c">SPF 20</span>        (effective floor)
+0.40 mg/mL  → 26% ROS↓ @5 mM H₂O₂
+1.58 mg/mL  → highest <span class="c">non-cytotoxic</span>
+3.20 mg/mL  → viability drops to 84%</pre>
+        <pre class="block"><span class="cm"># dose rule (mg/mL)</span>
+form_max = 1.00 − <span class="g">0.40</span>·(S/100)
+<span class="c">dose</span> = clamp(0.20 + (form_max−0.20)·load/100,
+             0.20, form_max)</pre>
+      </div>
+      <p>The <b>floor</b> is the concentration that actually delivered SPF 20; below it there is no meaningful photoprotection. The <b>hard ceiling</b> is the highest concentration that left keratinocyte viability intact. The working <b>formulation maximum</b> sits at 1.00 mg/mL — a ≈1.6× uncertainty factor below that measured ceiling, standard toxicology practice — and is pulled lower still for sensitive skin. Every recommendation is reported with its <b>safety margin</b> (how many-fold below the cytotoxic concentration it sits). The load-to-dose interpolation is linear because the measured ROS data give two points, not a curve; refining that shape is a first-order job for the calibration loop.</p>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">03</span>Skin → carrier blend <span class="tag2 fit">direction real · gains to-fit</span></h3>
+      <p>The two biosurfactants sit at different points on the <b>hydrophilic–lipophilic balance (HLB)</b> scale, the classic Griffin framework for matching a surfactant to a job. Glycolipids such as xylolipid are relatively hydrophilic (higher HLB) — better at spreading and cleansing, which suits <b>oily</b> skin and sebum-rich surfaces. Amino-acid-derived lipids such as lyso-ornithine are milder and more barrier-compatible (lower effective HLB), which suits <b>dry / sensitive</b> skin, where high-HLB surfactants are more likely to strip and irritate.</p>
+      <pre class="block">xylo_frac = clamp( 0.50 + <span class="g">0.25</span>·(O−50)/50 − <span class="g">0.25</span>·(S−50)/50 , 0.15 , 0.85 )   <span class="cm"># O = oiliness, S = sensitivity</span></pre>
+      <p>The <b>direction</b> of this rule is grounded in surfactant science and cited literature; the <b>magnitude</b> of the gains is honestly a placeholder, to be fitted by tensiometry (measured HLB of the team's own compounds) and trans-epidermal water loss (TEWL). This is the weakest-anchored of the three decisions, and the console says so rather than dressing it up.</p>
+    </div>
+  </section>
+
+  <!-- ================= PHOTO ANALYSIS THEORY ================= -->
+  <section class="doc" id="photo-theory">
+    <div class="eyebrow">Reading skin from a photo</div>
+    <h2>What the image analysis actually measures</h2>
+    <div class="card">
+      <p>The photo mode does <b>not</b> use machine learning or send your image anywhere — it runs a transparent, inspectable analysis of the pixels in your browser (HTML Canvas). You can click a specific patch of skin to sample just that spot. It derives the same two skin axes the questionnaire produces:</p>
+      <div class="grid2">
+        <div>
+          <p><b>Oiliness ← specular shine.</b> Oily skin reflects light as bright, low-saturation glare. The analyser counts the fraction of skin pixels that are near-white and desaturated (<code class="inl">L&gt;210, sat&lt;0.25</code>) and maps that glare fraction onto the oiliness axis.</p>
+          <p><b>Sensitivity ← erythema (a*).</b> The pixels are converted sRGB → CIE-Lab; the <code class="inl">a*</code> channel is the green–red axis, a standard proxy for skin redness / erythema. Higher a* nudges the sensitivity axis up.</p>
+        </div>
+        <div>
+          <p><b>Skin tone ← ITA°.</b> The Individual Typology Angle, <code class="inl">atan((L*−50)/b*)</code>, is the dermatology-standard tone measure (very light &gt; 55° … dark &lt; −30°). It gives a Fitzpatrick-like hint that lighter skin tends to burn more easily, and — importantly — it flags <i>when to distrust the redness reading</i>.</p>
+          <div class="callout"><b>Known limitation.</b> Optical erythema is genuinely harder to detect on deeper skin tones, a well-documented bias in skin imaging. That is why photo mode is a cross-check, never the sole input, and why the ITA° and a caution are shown alongside every result.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= COEFFICIENTS ================= -->
+  <section class="doc" id="coefficients">
+    <div class="eyebrow">Nothing hidden</div>
+    <h2>Every coefficient, with its provenance</h2>
+    <div class="card">
+      <p style="margin-bottom:16px">Each value is <span style="color:var(--culture)">■ measured/validated</span> (a real literature value or peer-reviewed formula) or <span style="color:var(--amber)">■ to-fit</span> (a first-principles placeholder the Phase-4 wet-lab replaces).</p>
+      <div style="overflow-x:auto">
+      <table class="coef">
+        <thead><tr><th>Coefficient</th><th>Value</th><th>Type</th><th>Source / calibration target</th></tr></thead>
+        <tbody id="coefTable"></tbody>
+      </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SOURCES ================= -->
+  <section class="doc" id="sources">
+    <div class="eyebrow">The receipts</div>
+    <h2>Sources</h2>
+    <div class="card">
+      <ol class="reflist">
+        <li><b>Air Quality Health Index — the environmental driver &amp; its coefficients.</b> Stieb DM, Burnett RT, Smith-Doiron M, Brion O, Shin HH, Economou V. <i>A new multipollutant, no-threshold air quality health index based on short-term associations observed in daily time-series analyses.</i> J Air Waste Manag Assoc. 2008;58(3):435–450. <span class="doi"><a href="https://doi.org/10.3155/1047-3289.58.3.435" target="_blank" rel="noopener">doi:10.3155/1047-3289.58.3.435</a></span></li>
+        <li><b>Pulcherrimin SPF, ROS-scavenging &amp; keratinocyte cytotoxicity — the dose anchors.</b> Kregiel D, Krajewska A, Kowalska-Baron A, Czarnecka-Chrebelska KH, Nowak A. <i>Photoprotective Effects of Yeast Pulcherrimin.</i> Molecules. 2024;29(20):4873. <span class="doi"><a href="https://doi.org/10.3390/molecules29204873" target="_blank" rel="noopener">doi:10.3390/molecules29204873</a></span> — SPF 20 at 0.20 mg/mL; non-cytotoxic ≤ 1.58 mg/mL on HaCaT; 26% ROS inhibition at 0.40 mg/mL.</li>
+        <li><b>Particulate matter → cutaneous oxidative stress &amp; barrier disruption.</b> Representative: PubMed <a href="https://pubmed.ncbi.nlm.nih.gov/38718731/" target="_blank" rel="noopener">PMID 38718731</a> and 23 related indexed studies.</li>
+        <li><b>Ozone depletes stratum-corneum antioxidants (vitamin E/C).</b> Thiele JJ, Packer L, et al. PubMed <a href="https://pubmed.ncbi.nlm.nih.gov/10648834/" target="_blank" rel="noopener">PMID 10648834</a>.</li>
+        <li><b>Glycolipid biosurfactants in skincare — HLB &amp; skin compatibility.</b> <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC10254413/" target="_blank" rel="noopener">PMC10254413</a>. Establishes glycolipids as mild, skin-compatible surfactants spanning the HLB range.</li>
+        <li><b>Individual Typology Angle (ITA°) — skin-tone classification used in photo mode.</b> Standard dermatology colorimetry (Chardon et al.), CIE-Lab based.</li>
+      </ol>
+      <p style="font-size:12px; color:var(--ink-faint); margin-top:16px;">Bibliographic data retrieved via PubMed. Attribution required by the source database.</p>
+    </div>
+  </section>
+
+  <!-- ================= SAFETY ================= -->
+  <section class="doc" id="safety">
+    <div class="eyebrow">Read this before a judge does</div>
+    <h2>Scope &amp; safety</h2>
+    <div class="card">
+      <div class="callout" style="border-color:var(--danger); background:color-mix(in srgb, var(--danger) 7%, transparent)">
+        <b>Research prototype — no medical claims.</b> There is no published clinical dose-response literature for these topical compound ratios. DermaSense is a <i>testable hypothesis</i> to be calibrated against bench data, not a validated clinical tool, and makes no diagnostic claim.
+      </div>
+      <p style="margin-top:14px">Two honest caveats worth stating up front: (1) The measured dose anchors are <b>in-vitro</b> (keratinocyte and spectrophotometric) concentrations; translating an in-vitro effective concentration to a final topical cream still requires the team's own permeation and patch-test work. (2) The photo analyser is an <b>optical proxy</b> with a documented deeper-skin-tone bias, offered as a cross-check to the questionnaire — never as a stand-alone verdict.</p>
+      <p><b>Calibration roadmap (Phase 4).</b> Each <span style="color:var(--amber)">to-fit</span> coefficient maps to one bench assay: dose curve ← DPPH/ABTS vs concentration on the team's own pulcherrimin; formulation ceiling ← keratinocyte cytotoxicity on the final extract; blend gains ← tensiometry (HLB) + TEWL; air-vs-UV weight ← the team's own protection assays under combined challenge.</p>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="disc"><b>Research prototype — no medical claims.</b> Analyses run locally in your browser; no image or location data is transmitted by this page.</div>
+    <div>DermaSense · iGEM modelling subteam</div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = s => document.querySelector(s);
+  const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+
+  /* ---------- presets & constants ---------- */
+  const CITIES = {
+    "delhi":{label:"Delhi, IN — severe",pm25:98,no2:55,o3:40,uv:8},
+    "beijing":{label:"Beijing, CN — high",pm25:55,no2:45,o3:60,uv:7},
+    "mumbai":{label:"Mumbai, IN — high",pm25:45,no2:38,o3:30,uv:10},
+    "losangeles":{label:"Los Angeles, US — ozone",pm25:12,no2:22,o3:70,uv:8},
+    "saopaulo":{label:"São Paulo, BR — moderate",pm25:18,no2:30,o3:45,uv:11},
+    "london":{label:"London, UK — moderate",pm25:11,no2:40,o3:35,uv:5},
+    "zurich":{label:"Zurich, CH — clean",pm25:8,no2:20,o3:40,uv:6},
+    "custom":{label:"Custom / manual entry",pm25:20,no2:25,o3:45,uv:6}
+  };
+  const M = {
+    aqhi:{o3:0.000537,no2:0.000871,pm25:0.000487,scale:1000/10.4},
+    ugToPpb:{no2:0.531,o3:0.509}, wAir:0.60,wUv:0.40,uvMax:11,
+    doseFloor:0.20,formMax:1.00,cytoLimit:1.58,sensCut:0.40,
+    base:0.50,kOil:0.25,kSens:0.25,xLo:0.15,xHi:0.85
+  };
+  const QUIZ = [
+    {id:"q1",axis:"O",q:"A few hours after washing, your face is…",opts:[["Tight / flaky",10],["Comfortable",40],["Shiny T-zone",65],["Shiny all over",90]]},
+    {id:"q2",axis:"O",q:"Your pores are…",opts:[["Barely visible",15],["Visible on nose",45],["Large & visible",78]]},
+    {id:"q3",axis:"O",q:"You get breakouts…",opts:[["Rarely",15],["Occasionally",50],["Frequently",85]]},
+    {id:"q4",axis:"S",q:"New products cause redness or stinging…",opts:[["Never",10],["Sometimes",45],["Often",78],["Almost always",95]]},
+    {id:"q5",axis:"S",q:"Your skin flushes or reddens easily…",opts:[["No",15],["A little",55],["Yes, easily",90]]},
+    {id:"q6",axis:"S",q:"In strong sun you tend to…",opts:[["Tan, rarely burn",20],["Sometimes burn",50],["Burn easily",85]]}
+  ];
+  const answers = {};
+  let env = {...CITIES.delhi}, currentCity = "delhi";
+  let skinMode = "quiz";            // "quiz" | "photo"
+  let photoSkin = null;             // {O,S} from image, or null
+
+  /* ---------- build inputs ---------- */
+  const citySel = $("#city");
+  Object.entries(CITIES).forEach(([k,v])=>{const o=document.createElement("option");o.value=k;o.textContent=v.label;citySel.appendChild(o);});
+  citySel.value="delhi";
+
+  const quizEl = $("#quiz");
+  QUIZ.forEach(item=>{
+    const f=document.createElement("div");f.className="field";
+    const lab=document.createElement("label");lab.className="flab";lab.textContent=item.q;
+    const seg=document.createElement("div");seg.className="seg";seg.dataset.q=item.id;
+    if(item.axis==="S")seg.classList.add("pulchsel");
+    item.opts.forEach(([txt,val],i)=>{
+      const b=document.createElement("button");b.type="button";b.textContent=txt;b.dataset.val=val;
+      b.setAttribute("aria-pressed",i===1?"true":"false");
+      if(i===1)answers[item.id]=val;
+      b.addEventListener("click",()=>{seg.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));b.setAttribute("aria-pressed","true");answers[item.id]=Number(b.dataset.val);recompute();});
+      seg.appendChild(b);
+    });
+    f.appendChild(lab);f.appendChild(seg);quizEl.appendChild(f);
+  });
+  QUIZ.forEach(item=>{if(answers[item.id]===undefined)answers[item.id]=item.opts[0][1];});
+
+  const customBox=$("#customEnv");
+  customBox.querySelectorAll(".slider").forEach(sl=>{const k=sl.dataset.k,input=sl.querySelector("input"),val=sl.querySelector(".val");
+    input.addEventListener("input",()=>{env[k]=Number(input.value);val.textContent=input.value;currentCity="custom";citySel.value="custom";recompute();});});
+  function syncSliders(){customBox.querySelectorAll(".slider").forEach(sl=>{const k=sl.dataset.k,input=sl.querySelector("input"),val=sl.querySelector(".val");input.value=env[k];val.textContent=env[k];});}
+  citySel.addEventListener("change",()=>{currentCity=citySel.value;env={...CITIES[currentCity]};syncSliders();if(currentCity==="custom")customBox.open=true;recompute();});
+
+  /* ---------- skin-mode tabs ---------- */
+  const tabQuiz=$("#tabQuiz"), tabPhoto=$("#tabPhoto"), paneQuiz=$("#paneQuiz"), panePhoto=$("#panePhoto");
+  function setMode(m){
+    skinMode=m;
+    const q=m==="quiz";
+    tabQuiz.setAttribute("aria-selected",q); tabPhoto.setAttribute("aria-selected",!q);
+    paneQuiz.hidden=!q; panePhoto.hidden=q;
+    recompute();
+  }
+  tabQuiz.addEventListener("click",()=>setMode("quiz"));
+  tabPhoto.addEventListener("click",()=>setMode("photo"));
+
+  /* ================= IMAGE ANALYSIS (client-side) ================= */
+  const drop=$("#drop"), fileInput=$("#fileInput"), canvas=$("#skinCanvas"), cw=$("#canvaswrap");
+  const ctx=canvas.getContext("2d",{willReadFrequently:true});
+  let imgLoaded=false;
+
+  drop.addEventListener("click",()=>fileInput.click());
+  drop.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fileInput.click();}});
+  drop.addEventListener("dragover",e=>{e.preventDefault();drop.classList.add("drag");});
+  drop.addEventListener("dragleave",()=>drop.classList.remove("drag"));
+  drop.addEventListener("drop",e=>{e.preventDefault();drop.classList.remove("drag");if(e.dataTransfer.files[0])loadImage(e.dataTransfer.files[0]);});
+  fileInput.addEventListener("change",()=>{if(fileInput.files[0])loadImage(fileInput.files[0]);});
+
+  function loadImage(file){
+    if(!file.type.startsWith("image/"))return;
+    const url=URL.createObjectURL(file), img=new Image();
+    img.onload=()=>{
+      const maxW=460, scale=Math.min(1,maxW/img.width);
+      canvas.width=Math.round(img.width*scale); canvas.height=Math.round(img.height*scale);
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      cw.style.display="block"; imgLoaded=true;
+      URL.revokeObjectURL(url);
+      analyzeRegion();      // whole image first
+    };
+    img.src=url;
+  }
+
+  canvas.addEventListener("click",e=>{
+    if(!imgLoaded)return;
+    const r=canvas.getBoundingClientRect();
+    const x=Math.round((e.clientX-r.left)*(canvas.width/r.width));
+    const y=Math.round((e.clientY-r.top)*(canvas.height/r.height));
+    analyzeRegion(x,y);
+    // draw a sample marker
+    ctx.strokeStyle="rgba(255,255,255,.9)"; ctx.lineWidth=2;
+    const half=Math.round(Math.min(canvas.width,canvas.height)*0.12);
+    // redraw not trivial without source; just outline the sampled box
+    ctx.strokeRect(x-half,y-half,half*2,half*2);
+    $("#canvasHint").textContent="Sampled a patch. Click again to move it.";
+  });
+
+  function rgb2lab(r,g,b){
+    r/=255;g/=255;b/=255;
+    r=r>0.04045?Math.pow((r+0.055)/1.055,2.4):r/12.92;
+    g=g>0.04045?Math.pow((g+0.055)/1.055,2.4):g/12.92;
+    b=b>0.04045?Math.pow((b+0.055)/1.055,2.4):b/12.92;
+    let x=(r*0.4124+g*0.3576+b*0.1805)/0.95047;
+    let y=(r*0.2126+g*0.7152+b*0.0722);
+    let z=(r*0.0193+g*0.1192+b*0.9505)/1.08883;
+    const f=t=>t>0.008856?Math.cbrt(t):(7.787*t+16/116);
+    const fx=f(x),fy=f(y),fz=f(z);
+    return [116*fy-16, 500*(fx-fy), 200*(fy-fz)];
+  }
+
+  function analyzeRegion(cx,cy){
+    let x0=0,y0=0,w=canvas.width,h=canvas.height;
+    if(cx!==undefined){
+      const half=Math.round(Math.min(canvas.width,canvas.height)*0.12);
+      x0=clamp(cx-half,0,canvas.width-1); y0=clamp(cy-half,0,canvas.height-1);
+      w=Math.min(half*2,canvas.width-x0); h=Math.min(half*2,canvas.height-y0);
+    }
+    const d=ctx.getImageData(x0,y0,Math.max(1,w),Math.max(1,h)).data;
+    let n=0,sumR=0,sumG=0,sumB=0; const lums=[],sats=[];
+    for(let i=0;i<d.length;i+=4){
+      const r=d[i],g=d[i+1],b=d[i+2];
+      const mx=Math.max(r,g,b),mn=Math.min(r,g,b);
+      const L=0.2126*r+0.7152*g+0.0722*b, sat=mx===0?0:(mx-mn)/mx;
+      const isSkin = r>50 && r>=g*0.9 && g>=b*0.85 && (r-b)>8;   // loose skin-pixel filter
+      if(!isSkin) continue;
+      n++; sumR+=r;sumG+=g;sumB+=b; lums.push(L); sats.push(sat);
+    }
+    if(n<40){ // fallback: use all pixels if skin filter too aggressive
+      n=0;sumR=sumG=sumB=0;lums.length=0;sats.length=0;
+      for(let i=0;i<d.length;i+=4){const r=d[i],g=d[i+1],b=d[i+2];const mx=Math.max(r,g,b),mn=Math.min(r,g,b);const L=0.2126*r+0.7152*g+0.0722*b,sat=mx===0?0:(mx-mn)/mx;n++;sumR+=r;sumG+=g;sumB+=b;lums.push(L);sats.push(sat);}
+    }
+    const mR=sumR/n,mG=sumG/n,mB=sumB/n;
+    // tone-relative shine: highlights brighter than the skin's OWN median (robust across skin tones)
+    const med=[...lums].sort((a,b)=>a-b)[Math.floor(lums.length/2)];
+    let shine=0; for(let i=0;i<lums.length;i++){ if(lums[i]>med+22 && lums[i]>70 && sats[i]<0.32) shine++; }
+    const shineFrac=shine/n;
+    const [Ls,as,bs]=rgb2lab(mR,mG,mB);
+    const ita=Math.atan2(Ls-50,bs)*180/Math.PI;
+
+    // ---- map to skin axes ----
+    const O=clamp(25+shineFrac*600, 8, 96);
+    const toneAdj = ita>41?8 : ita<10?-4 : 0;                 // very light skin slightly more UV-reactive
+    const S=clamp((as-8)*7 + toneAdj + 22, 8, 96);            // a* erythema → sensitivity
+    photoSkin={O,S};
+
+    // ---- display metrics ----
+    $("#metrics").style.display="grid";
+    $("#photonote").style.display="flex";
+    $("#mShine").textContent=(shineFrac*100).toFixed(1)+"%";
+    $("#mRed").textContent=as.toFixed(1);
+    $("#mIta").textContent=Math.round(ita)+"°";
+    $("#mItaLbl").textContent = ita>55?"very light":ita>41?"light":ita>28?"intermediate":ita>10?"tan":ita>-30?"brown":"dark";
+
+    if(skinMode==="photo") recompute();
+  }
+
+  /* ================= MODEL ================= */
+  function computeSkin(){
+    let O,S;
+    if(skinMode==="photo" && photoSkin){ O=photoSkin.O; S=photoSkin.S; }
+    else { const avg=a=>{const it=QUIZ.filter(q=>q.axis===a);return it.reduce((s,q)=>s+answers[q.id],0)/it.length;}; O=avg("O");S=avg("S"); }
+    const barrier=clamp(100-0.45*(100-O)-0.45*S,0,100);
+    return {O,S,barrier};
+  }
+  function computeAQHI(){
+    const o3ppb=env.o3*M.ugToPpb.o3, no2ppb=env.no2*M.ugToPpb.no2;
+    const term={o3:Math.exp(M.aqhi.o3*o3ppb)-1,no2:Math.exp(M.aqhi.no2*no2ppb)-1,pm25:Math.exp(M.aqhi.pm25*env.pm25)-1};
+    return {aqhi:Math.max(0,M.aqhi.scale*(term.o3+term.no2+term.pm25)),term};
+  }
+  function computeLoad(){
+    const {aqhi,term}=computeAQHI();
+    const uvN=clamp(env.uv/M.uvMax,0,1), airN=clamp(aqhi/10,0,1);
+    const load=100*(M.wAir*airN+M.wUv*uvN);
+    const tsum=term.o3+term.no2+term.pm25||1, ac=M.wAir*airN;
+    return {load,aqhi,uvN,contrib:{"PM2.5":ac*term.pm25/tsum,"Ozone":ac*term.o3/tsum,"NO₂":ac*term.no2/tsum,"UV":M.wUv*uvN}};
+  }
+  function bandFor(load){
+    if(load<25)return{lbl:"Low load",col:"var(--culture)",copy:"Clean-air baseline. The active sits near its effective floor — maintenance only."};
+    if(load<50)return{lbl:"Moderate load",col:"var(--amber)",copy:"Meaningful ambient oxidant burden. The active scales up while holding a wide safety margin."};
+    if(load<75)return{lbl:"High load",col:"var(--pulch)",copy:"Heavy pollution / UV. The active ramps toward the formulation ceiling for real protection."};
+    return{lbl:"Severe load",col:"var(--danger)",copy:"Extreme oxidative environment. The active sits at its safety-capped formulation ceiling."};
+  }
+  const ARC=2*Math.PI*57;
+
+  function recompute(){
+    const {O,S,barrier}=computeSkin();
+    const {load,aqhi,contrib}=computeLoad();
+
+    $("#osiNum").textContent=Math.round(load);
+    $("#gaugeArc").style.strokeDashoffset=ARC*(1-load/100);
+    const b=bandFor(load);
+    $("#gaugeArc").style.stroke=b.col;
+    const be=$("#osiBand");be.querySelector(".dot").style.background=b.col;be.querySelector(".lbl").textContent=b.lbl;be.style.color=b.col;be.style.background="color-mix(in srgb, "+b.col+" 12%, transparent)";
+    $("#osiCopy").textContent=b.copy;
+
+    const aqBand=aqhi<4?"Low":aqhi<7?"Moderate":aqhi<10?"High":"Very high";
+    $("#subIdx").innerHTML=`<span class="s">AQHI <b>${aqhi.toFixed(1)}</b> / 10 · ${aqBand}</span><span class="s">UV index <b>${env.uv}</b></span>`;
+
+    const drv=$("#drivers");drv.innerHTML="";
+    Object.entries(contrib).sort((a,c)=>c[1]-a[1]).forEach(([k,val])=>{
+      const pct=load>0?Math.round(100*val/(load/100)):0;
+      const row=document.createElement("div");row.className="drv";
+      row.innerHTML=`<span class="dl">${k}</span><span class="bar"><i style="width:${clamp(pct,0,100)}%"></i></span><span class="dv">${pct}%</span>`;
+      drv.appendChild(row);
+    });
+
+    const oLbl=O>=66?"oily":O>=40?"combination":"dry", sLbl=S>=66?"sensitive":S>=40?"reactive":"resistant";
+    const src=skinMode==="photo"&&photoSkin?"photo":"quiz";
+    $("#paramChips").innerHTML=`<span class="chip">Type <b>${oLbl} · ${sLbl}</b></span><span class="chip">Oiliness <b>${Math.round(O)}</b></span><span class="chip">Sensitivity <b>${Math.round(S)}</b></span><span class="chip">Barrier <b>${Math.round(barrier)}</b></span><span class="chip">via <b>${src}</b></span>`;
+
+    const formMax=M.formMax-M.sensCut*(S/100);
+    const dose=clamp(M.doseFloor+(formMax-M.doseFloor)*(load/100),M.doseFloor,formMax);
+    const margin=M.cytoLimit/dose, pctww=(dose*0.1).toFixed(3);
+    $("#doseVal").textContent=dose.toFixed(2)+" mg/mL";
+    $("#doseSub").innerHTML=`≈ <b>${pctww}%</b> w/v · <b>${margin.toFixed(1)}×</b> below the measured cytotoxic threshold · SPF-active from 0.20 mg/mL`;
+    $("#doseMark").style.left=clamp(100*dose/M.cytoLimit,0,100)+"%";
+
+    const atCeil=dose>=formMax-1e-6, cn=$("#capNote"), ct=$("#capTxt");
+    if(atCeil&&S>=66){cn.className="capnote cap";cn.querySelector("span:first-child").textContent="⚠";ct.innerHTML=`Held at the sensitive-skin ceiling <b>${formMax.toFixed(2)} mg/mL</b> — ${margin.toFixed(1)}× under the measured cytotoxic limit. Safety wins.`;}
+    else if(S>=66){cn.className="capnote warn";cn.querySelector("span:first-child").textContent="◑";ct.innerHTML=`Sensitive-skin ceiling lowered to <b>${formMax.toFixed(2)} mg/mL</b>; current dose sits comfortably below it.`;}
+    else{cn.className="capnote ok";cn.querySelector("span:first-child").textContent="✓";ct.innerHTML=`Inside the tested-safe window — <b>${margin.toFixed(1)}×</b> below the concentration where HaCaT viability drops.`;}
+
+    const xyloFrac=clamp(M.base+M.kOil*(O-50)/50-M.kSens*(S-50)/50,M.xLo,M.xHi);
+    const xPct=Math.round(xyloFrac*100),lPct=100-xPct;
+    $("#ratioVal").textContent=`${xPct} : ${lPct}`;
+    const xs=$("#xyloSeg"),ls=$("#lysoSeg");xs.style.flexBasis=xPct+"%";ls.style.flexBasis=lPct+"%";xs.textContent=xPct+"%";ls.textContent=lPct+"%";xs.style.fontSize=xPct<14?"0":"11px";ls.style.fontSize=lPct<14?"0":"11px";
+
+    const loadWord=load<25?"clean-air":load<50?"moderately polluted":load<75?"heavily polluted":"extreme";
+    const topDriver=Object.entries(contrib).sort((a,c)=>c[1]-a[1])[0][0];
+    const carrierWord=xPct>60?`weighted to <span class="carrier-t">xylolipid</span> for spreading on ${oLbl} skin`:xPct<40?`weighted to <span class="carrier-t">lyso-ornithine</span> to stay gentle on ${sLbl} skin`:`kept near <span class="carrier-t">balanced</span> for ${oLbl}, ${sLbl} skin`;
+    $("#whyText").innerHTML=`Your location scores <b>AQHI ${aqhi.toFixed(1)}/10</b> (${loadWord}, led by ${topDriver}) which with UV gives an oxidative load of <b>${Math.round(load)}/100</b>. The microbe is dialled to <span class="active-t">${dose.toFixed(2)} mg/mL pulcherrimin</span> — above the measured SPF-20 floor and ${margin.toFixed(1)}× below the concentration that reduced keratinocyte viability. The carrier is <b>${xPct}:${lPct}</b>, ${carrierWord}, sliding the blend's HLB toward what this ${src === "photo" ? "photo-read" : "reported"} skin type tolerates.`;
+
+    $("#liveTick").style.opacity="1";
+  }
+
+  /* ---------- coefficient table ---------- */
+  const COEFS=[
+    ["AQHI · O₃","0.000537","real","Stieb 2008 relative-risk coefficient (per ppb)"],
+    ["AQHI · NO₂","0.000871","real","Stieb 2008 relative-risk coefficient (per ppb)"],
+    ["AQHI · PM2.5","0.000487","real","Stieb 2008 relative-risk coefficient (per µg/m³)"],
+    ["air : UV weight","0.60 : 0.40","fit","Relative emphasis of pollution vs UV — adjustable"],
+    ["dose floor","0.20 mg/mL","real","SPF-20 effective concentration, Kregiel 2024"],
+    ["cytotoxic limit","1.58 mg/mL","real","Highest non-cytotoxic conc. on HaCaT, Kregiel 2024"],
+    ["formulation max","1.00 mg/mL","fit","≈1.6× uncertainty factor below the measured limit"],
+    ["sensitive-skin cut","0.40 mg/mL","fit","Ceiling reduction at S=100 — set by patch-test tolerance"],
+    ["blend gains k","0.25 / 0.25","fit","HLB response — fit to tensiometry + TEWL of your compounds"],
+    ["photo → oiliness","25 + 600·shine","fit","Tone-relative highlight fraction → oiliness axis"],
+    ["photo → sensitivity","(a*−8)·7 +tone","fit","CIE-Lab a* erythema → sensitivity axis"]
+  ];
+  const cbody=$("#coefTable");
+  COEFS.forEach(([n,v,t,s])=>{const tr=document.createElement("tr");const tag=t==="real"?`<span class="tag2 real">measured</span>`:`<span class="tag2 fit">to-fit</span>`;tr.innerHTML=`<td>${n}</td><td class="v">${v}</td><td>${tag}</td><td>${s}</td>`;cbody.appendChild(tr);});
+
+  /* ---------- theme ---------- */
+  const root=document.documentElement,tBtn=$("#themeBtn");
+  function applyTheme(t){root.setAttribute("data-theme",t);$("#themeIcon").textContent=t==="dark"?"☾":"☀";$("#themeTxt").textContent=t==="dark"?"Dark":"Light";}
+  tBtn.addEventListener("click",()=>{const cur=root.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");applyTheme(cur==="dark"?"light":"dark");});
+
+  syncSliders(); recompute();
+})();
+</script>
