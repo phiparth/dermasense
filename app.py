@@ -13,8 +13,11 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from PIL import Image
 
 import dermasense_model as dm
+import env_api
+import skin_inputs as sk
 from dermasense_model import (
     CAPS, CAP_REASON, COMPOUND_NAME, DOSE_ORDER, EVIDENCE, BANDS,
     A0_HEALTHY, A0_COMPROMISED, NOMINAL,
@@ -135,29 +138,275 @@ def c_spread(e_keys, p_k):
 
 
 # ----------------------------------------------------------------------------
-# sidebar: the five environment inputs
+# input capture
+# ----------------------------------------------------------------------------
+# The model wants three exposure channels and two person-level numbers. A
+# modeller wants to type them; anybody else wants the app to go and find them.
+# Both routes end at the same Environment(), and the sidebar prints the five
+# resolved numbers so the two can never quietly drift apart.
+
+ENV_LIVE = "Live, from a location"
+ENV_MANUAL = "Set them myself"
+SKIN_QUIZ = "Questionnaire"
+SKIN_PHOTO = "Photo"
+SKIN_BOTH = "Questionnaire + photo"
+SKIN_MANUAL = "Set them myself"
+
+REF_ENV = {"C_PM": 80.0, "C_O3": 60.0, "I_UV": 1.0}
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def c_geocode(query: str):
+    return env_api.geocode(query, count=5)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def c_live(lat: float, lon: float, name: str, country: str, admin1: str, tz: str):
+    return env_api.fetch_live_environment(
+        env_api.Place(name=name, lat=lat, lon=lon, country=country, admin1=admin1, timezone=tz)
+    )
+
+
+def _parse_latlon(text: str):
+    bits = text.replace(";", ",").split(",")
+    if len(bits) != 2:
+        return None
+    try:
+        lat, lon = float(bits[0]), float(bits[1])
+    except ValueError:
+        return None
+    if -90 <= lat <= 90 and -180 <= lon <= 180:
+        return env_api.Place(name=f"{lat:.3f}, {lon:.3f}", lat=lat, lon=lon)
+    return None
+
+
+def env_sliders(defaults, key_suffix=""):
+    c1, c2, c3 = st.columns(3)
+    pm = c1.slider("PM2.5, ug/m3", 0.0, 400.0, float(min(defaults["C_PM"], 400.0)), 1.0,
+                   key=f"pm{key_suffix}",
+                   help="Reference day is 80. Delhi winter peaks past 300, which is "
+                        "outside the range the TEWL slope was fitted on.")
+    o3 = c2.slider("Ozone, ug/m3", 0.0, 300.0, float(min(defaults["C_O3"], 300.0)), 1.0,
+                   key=f"o3{key_suffix}",
+                   help="Reference day is 60. If your feed reports ppb, multiply by "
+                        "1.962 at 25 C.")
+    uv = c3.slider("UV dose, normalised", 0.0, 3.0, float(min(defaults["I_UV"], 3.0)), 0.05,
+                   key=f"uv{key_suffix}",
+                   help="1.0 is the reference day. Dimensionless on purpose: no source "
+                        "reported an absolute UV dose next to a skin endpoint we could use.")
+    return {"C_PM": pm, "C_O3": o3, "I_UV": uv}
+
+
+def capture_environment(source):
+    """-> (values dict, provenance string, notes list)"""
+    if source == ENV_MANUAL:
+        return env_sliders(REF_ENV, "_manual"), "typed in", []
+
+    c1, c2 = st.columns([1.4, 1])
+    query = c1.text_input("City, or a 'lat, lon' pair", value="Delhi", key="place_q",
+                          help="Open-Meteo geocoding. Coordinates skip the lookup.")
+    uv_label = c2.radio("UV channel", ["Today's peak", "Right now"], horizontal=True,
+                        help="Peak is the default: a moisturiser applied in the morning "
+                             "is on the face all day, and 'right now' reads zero after "
+                             "dark, which would recommend no UV screen at all.")
+    uv_mode = "peak" if uv_label.startswith("Today") else "now"
+
+    place = _parse_latlon(query)
+    if place is None:
+        try:
+            hits = c_geocode(query)
+        except env_api.EnvLookupError as exc:
+            st.error(f"{exc}. Falling back to the reference day.")
+            return dict(REF_ENV), "reference day, lookup failed", []
+        if not hits:
+            st.warning(f"Nothing matched {query!r}. Showing the reference day.")
+            return dict(REF_ENV), "reference day, no match", []
+        if len(hits) > 1:
+            labels = [h.label for h in hits]
+            pick = st.selectbox("Which one", labels, index=0, key="place_pick")
+            place = hits[labels.index(pick)]
+        else:
+            place = hits[0]
+
+    try:
+        live = c_live(place.lat, place.lon, place.name, place.country,
+                      place.admin1, place.timezone)
+    except env_api.EnvLookupError as exc:
+        st.error(f"{exc}. Falling back to the reference day.")
+        return dict(REF_ENV), "reference day, feed down", []
+
+    uvi_ref = st.session_state.get("uvi_ref", env_api.UVI_REF)
+    vals = live.model_inputs(uv_mode, uvi_ref)
+
+    m = st.columns(5)
+    m[0].metric("PM2.5", f"{live.pm25:.0f}", help="ug/m3")
+    m[1].metric("Ozone", f"{live.o3:.0f}", help="ug/m3")
+    m[2].metric("NO2", f"{live.no2:.0f}", help="ug/m3, not a model input: no channel for it")
+    m[3].metric("UV index", f"{live.uv_index(uv_mode):.1f}",
+                help=f"now {live.uv_now:.1f}, peak today {live.uv_peak_today:.1f}")
+    m[4].metric("European AQI", "-" if live.european_aqi is None else f"{live.european_aqi:.0f}",
+                help="Context only. The model reads concentrations, not an index.")
+
+    st.caption(
+        f"{live.place.label} at {live.observed_at}, Open-Meteo (CAMS). "
+        f"I_UV = UV {uv_mode} / {uvi_ref:g}."
+    )
+
+    with st.expander("Adjust the fetched numbers, or the UV reference"):
+        st.number_input(
+            "UVI_REF, the UV index that counts as I_UV = 1.0", 1.0, 15.0,
+            float(uvi_ref), 0.5, key="uvi_ref",
+            help="Class C, our choice. 8.0 is the bottom of the WHO 'very high' band, "
+                 "the same kind of day PM 80 and ozone 60 describe. Nothing else in "
+                 "the model depends on it.",
+        )
+        if st.checkbox("Override the feed", key="env_override"):
+            vals = env_sliders(vals, "_live")
+            return vals, f"{live.place.label}, overridden by hand", env_api.domain_warnings(vals)
+
+    return vals, f"{live.place.label}, live", env_api.domain_warnings(vals)
+
+
+def _quiz_column(questions, prefix, index=2):
+    answers = {}
+    for q in questions:
+        answers[q.key] = st.selectbox(q.prompt, q.labels, index=index, key=f"{prefix}_{q.key}")
+    return answers
+
+
+def capture_skin(source):
+    """-> (PT, A0, provenance string, notes list)"""
+    quiz_pt = photo_pt = None
+    quiz_a0 = photo_a0 = None
+    notes = []
+
+    if source == SKIN_MANUAL:
+        c1, c2 = st.columns([1.3, 1])
+        PT = c1.select_slider("Fitzpatrick phototype", options=[1, 2, 3, 4, 5, 6], value=1,
+                              format_func=lambda i: sk.PT_ROMAN[i - 1])
+        barrier = c2.radio("Barrier state", ["Healthy", "Compromised"], horizontal=True,
+                           help="A binary flag, not a measurement. Kim 2016 established "
+                                "the direction, not the magnitude.")
+        return PT, (A0_HEALTHY if barrier == "Healthy" else A0_COMPROMISED), "typed in", []
+
+    if source in (SKIN_QUIZ, SKIN_BOTH):
+        st.markdown("**Phototype** &nbsp; <span style='color:%s'>Fitzpatrick's ten "
+                    "self-report items, scored as published</span>" % MUTED,
+                    unsafe_allow_html=True)
+        groups = {}
+        for q in sk.FITZPATRICK_QUESTIONS:
+            groups.setdefault(q.group, []).append(q)
+        cols = st.columns(len(groups))
+        answers = {}
+        for col, (group, qs) in zip(cols, groups.items()):
+            with col:
+                st.caption(group)
+                answers.update(_quiz_column(qs, "fz"))
+        qres = sk.phototype_from_quiz(answers)
+        quiz_pt = int(qres.value)
+        st.caption(f"Score {qres.total}/40 -> **{qres.label}**")
+
+        st.markdown("**Barrier** &nbsp; <span style='color:%s'>POEM, seven items, "
+                    "the last seven days</span>" % MUTED, unsafe_allow_html=True)
+        pcols = st.columns(2)
+        panswers = {}
+        half = (len(sk.POEM_QUESTIONS) + 1) // 2
+        # index 0 = "no days". An untouched form has to describe calm skin, not a
+        # week of bleeding, or the default person arrives with a broken barrier.
+        with pcols[0]:
+            panswers.update(_quiz_column(sk.POEM_QUESTIONS[:half], "pm", index=0))
+        with pcols[1]:
+            panswers.update(_quiz_column(sk.POEM_QUESTIONS[half:], "pm", index=0))
+        override = st.checkbox(
+            "On a retinoid or an acid, fresh peel, shave rash, or a week of cold wind",
+            help="Barrier insults POEM does not ask about. Forces the compromised value.",
+        )
+        bres = sk.barrier_from_quiz(panswers, disrupted_override=override)
+        quiz_a0 = float(bres.value)
+        st.caption(f"POEM {bres.total}/28 -> **A0 {quiz_a0:.2f}**")
+        notes += qres.notes + bres.notes
+
+    if source in (SKIN_PHOTO, SKIN_BOTH):
+        if source == SKIN_BOTH:
+            st.markdown("---")
+        st.markdown("**Photo** &nbsp; <span style='color:%s'>ITA degrees for the "
+                    "phototype, two uncalibrated proxies for the barrier</span>" % MUTED,
+                    unsafe_allow_html=True)
+        up = st.file_uploader("A well-lit close-up of a cheek or forehead, some "
+                              "background in frame", type=["jpg", "jpeg", "png", "webp"])
+        oc1, oc2 = st.columns(2)
+        crop = oc1.slider("Centre crop", 0.2, 1.0, 1.0, 0.05,
+                          help="Crop in until the frame is mostly skin.")
+        wb = oc2.radio("White balance", ["As shot", "Grey world"], horizontal=True,
+                       help="Grey world assumes the frame averages to neutral. True "
+                            "with a wall or a sheet of paper in shot, false for a "
+                            "full-frame cheek.")
+        if up is not None:
+            img = Image.open(up)
+            res = sk.analyze_photo(img, white_balance="greyworld" if wb == "Grey world" else "none",
+                                   crop_frac=crop)
+            photo_pt, photo_a0 = res.PT, float(res.A0)
+            ic, mc = st.columns([1, 2])
+            with ic:
+                st.image(img, width="stretch")
+            with mc:
+                p = st.columns(4)
+                p[0].metric("ITA", f"{res.ita:.0f} deg", res.ita_class)
+                p[1].metric("Phototype", res.pt_roman, "from the ITA class")
+                p[2].metric("A0", f"{photo_a0:.2f}", f"severity {res.severity:.2f}")
+                p[3].metric("Skin in frame", f"{res.skin_fraction * 100:.0f}%",
+                            f"{res.n_pixels} px measured")
+                st.caption(
+                    f"L* {res.L:.1f}  a* {res.a_star:.1f}  b* {res.b_star:.1f} &nbsp;|&nbsp; "
+                    f"erythema spread {res.erythema_spread:.2f} a* units, texture "
+                    f"{res.texture:.3f}"
+                )
+                if res.deep:
+                    st.caption(f"Optional classifier: type "
+                               f"{sk.PT_ROMAN[int(res.deep['PT']) - 1]}, "
+                               f"p = {res.deep['confidence']:.2f}")
+            notes += res.warnings
+        else:
+            st.info("No photo yet. " + ("Using the questionnaire alone."
+                                        if source == SKIN_BOTH else
+                                        "Showing type I and a healthy barrier until there is one."))
+
+    PT, why = sk.reconcile(quiz_pt, photo_pt)
+    if PT is None:
+        PT = 1
+    if quiz_a0 is None and photo_a0 is None:
+        A0 = A0_HEALTHY
+    elif quiz_a0 is None or photo_a0 is None:
+        A0 = quiz_a0 if photo_a0 is None else photo_a0
+    else:
+        # the worse of the two. Under-treating a disrupted barrier is the failure
+        # that matters, and the model's own self-toxicity term caps the dose from
+        # above, so there is no runaway on this side.
+        A0 = min(quiz_a0, photo_a0)
+    if source == SKIN_BOTH and quiz_pt is not None and photo_pt is not None:
+        notes.append(f"Phototype: {why}. Barrier: taking the worse of "
+                     f"{quiz_a0:.2f} and {photo_a0:.2f}.")
+    return int(PT), float(A0), why, notes
+
+
+# ----------------------------------------------------------------------------
+# sidebar
 # ----------------------------------------------------------------------------
 
 with st.sidebar:
-    st.markdown("### Environment")
-    st.caption("The five inputs the model needs. Everything else is computed.")
-
-    C_PM = st.slider("PM2.5, ug/m3", 0.0, 400.0, 80.0, 1.0,
-                     help="Reference day is 80. Delhi winter peaks past 300, "
-                          "which is outside the range the TEWL slope was fitted on.")
-    C_O3 = st.slider("Ozone, ug/m3", 0.0, 300.0, 60.0, 1.0,
-                     help="Reference day is 60. If your feed reports ppb, "
-                          "multiply by 1.962 at 25 C.")
-    I_UV = st.slider("UV dose, normalised", 0.0, 3.0, 1.0, 0.05,
-                     help="1.0 is the reference day. Dimensionless on purpose: "
-                          "no source reported an absolute UV dose next to a "
-                          "skin endpoint we could use.")
-    PT = st.select_slider("Fitzpatrick phototype", options=[1, 2, 3, 4, 5, 6],
-                          value=1, format_func=lambda i: "I II III IV V VI".split()[i - 1])
-    barrier = st.radio("Barrier state", ["Healthy", "Compromised"], horizontal=True,
-                       help="A binary flag, not a measurement. Kim 2016 established "
-                            "the direction, not the magnitude.")
-    A0 = A0_HEALTHY if barrier == "Healthy" else A0_COMPROMISED
+    st.markdown("### Where the inputs come from")
+    env_source = st.radio(
+        "Exposure", [ENV_LIVE, ENV_MANUAL],
+        help="Live pulls PM2.5, ozone and the UV index for a place from Open-Meteo, "
+             "which is CAMS underneath: a model reanalysis at the nearest grid cell, "
+             "not a kerbside monitor.",
+    )
+    skin_source = st.radio(
+        "Skin", [SKIN_QUIZ, SKIN_PHOTO, SKIN_BOTH, SKIN_MANUAL],
+        help="The questionnaire is two published instruments. The photo is ITA "
+             "degrees plus two proxies nobody has calibrated. Running both is the "
+             "honest option: they disagree, and the app says how it settled it.",
+    )
 
     st.markdown("---")
     lag_h = st.slider("Sensor to secretion lag, hours", 0.0, 12.0, 0.0, 0.25,
@@ -180,17 +429,9 @@ with st.sidebar:
     else:
         params = conservative_params("all")
 
-    st.markdown("---")
-    st.caption(
-        "DermaSense v3 unified model. 32 constants, 11 of them class C "
-        "(nobody measured them, we chose a value)."
-    )
-
-env = Environment(C_PM=C_PM, C_O3=C_O3, I_UV=I_UV, PT=PT, A0=A0, lag_h=lag_h)
-
 
 # ----------------------------------------------------------------------------
-# header + mode
+# header + capture panel
 # ----------------------------------------------------------------------------
 
 st.title("DermaSense v3")
@@ -199,6 +440,38 @@ st.markdown(
     "of it four engineered compounds take back.</span>",
     unsafe_allow_html=True,
 )
+
+with st.expander("Inputs: where this day and this skin came from", expanded=True):
+    st.markdown("##### Exposure")
+    env_vals, env_prov, env_notes = capture_environment(env_source)
+    st.markdown("##### Skin")
+    PT, A0, skin_prov, skin_notes = capture_skin(skin_source)
+
+env = Environment(C_PM=env_vals["C_PM"], C_O3=env_vals["C_O3"], I_UV=env_vals["I_UV"],
+                  PT=PT, A0=A0, lag_h=lag_h)
+
+for msg in env_notes + skin_notes:
+    st.markdown(f'<div class="flag">{msg}</div>', unsafe_allow_html=True)
+
+with st.sidebar:
+    st.markdown("---")
+    st.markdown("### The five numbers, resolved")
+    st.markdown(
+        f"<div style='font-family:monospace;font-size:0.82rem;line-height:1.55'>"
+        f"C_PM &nbsp;{env.C_PM:7.1f} ug/m3<br>"
+        f"C_O3 &nbsp;{env.C_O3:7.1f} ug/m3<br>"
+        f"I_UV &nbsp;{env.I_UV:7.3f}<br>"
+        f"PT &nbsp;&nbsp;&nbsp;{sk.PT_ROMAN[env.PT - 1]:>7}<br>"
+        f"A0 &nbsp;&nbsp;&nbsp;{env.A0:7.2f}</div>"
+        f"<div style='font-size:0.74rem;color:{MUTED};margin-top:0.5rem'>"
+        f"exposure: {env_prov}<br>skin: {skin_prov}</div>",
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "DermaSense v3 unified model. 32 constants, 11 of them class C "
+        "(nobody measured them, we chose a value). A0 between the anchors is ours "
+        "too: the spec's A0 is binary."
+    )
 
 mode = st.radio(
     "Mode",
@@ -594,7 +867,8 @@ with tabs[4]:
     pms = np.linspace(pm_grid[0], pm_grid[1], n_grid)
     pts = [1, 4, 6]
     exposures = tuple(
-        Environment(C_PM=float(pm), C_O3=C_O3, I_UV=I_UV, PT=pt, A0=A0, lag_h=lag_h)
+        Environment(C_PM=float(pm), C_O3=env.C_O3, I_UV=env.I_UV, PT=pt, A0=env.A0,
+                    lag_h=env.lag_h)
         for pm in pms for pt in pts
     )
     spread = c_spread(tuple(ekey(e) for e in exposures), pkey(params))
