@@ -7,6 +7,7 @@ Run:  python -m pytest test_model.py -q
 
 import numpy as np
 
+import dermasense_model as dm
 from dermasense_model import (
     CAPS, DOSE_ORDER, NOMINAL, A0_COMPROMISED,
     Dose, Environment,
@@ -183,6 +184,96 @@ def test_conservative_preset_is_much_worse_than_nominal():
     g_nom = optimal_dose(REF)[1]
     g_con = optimal_dose(REF, conservative_params("C"))[1]
     assert g_con < g_nom - 0.15
+
+
+# ------------------------------------------------------------ the control arm
+
+def test_control_is_off_by_default():
+    """Every number in the specification has to survive the new coordinate. The
+    S slot is zero unless something asks for it, so it cannot move a spec value."""
+    assert Dose().S == 0.0
+    assert abs(evaluate(REF, REC)["RSD"] - 0.4424) < 5e-3
+    d, g = optimal_dose(REF)
+    assert d.S == 0.0
+    assert abs(g - 0.5576) < 2e-3
+
+
+def test_control_runs_through_the_same_equations():
+    """S is not a bolted-on term: it enters the same Langmuir denominator, the
+    same stripping sum and the same self-toxicity sum as the lab surfactants.
+    Giving it the lab constants must make it behave exactly like xylolipid."""
+    p = NOMINAL.with_values(CMC_S=NOMINAL.K_X_ads, C_crit_S=NOMINAL.C_crit,
+                            strip_S=NOMINAL.strip)
+    as_X = evaluate(REF, Dose(X=0.2), p)
+    as_S = evaluate(REF, Dose(S=0.2), p)
+    for k in ("theta", "sigma_PM", "sigma_gas", "Psi", "B_prime"):
+        assert abs(as_X[k] - as_S[k]) < 1e-12, k
+    # the one asymmetry is deliberate: xylolipid also scavenges (S3), the
+    # benchmark surfactant is a film former only.
+    assert as_X["kappa_app"] > as_S["kappa_app"]
+
+
+def test_film_formers_compete_for_one_interface():
+    """Coverage is sub-additive across all three, because there is one surface."""
+    p = dm.benchmark_params("sophorolipid")
+    th_lab = evaluate(REF, Dose(X=CAPS["X"], L=CAPS["L"]), p)["theta"]
+    th_both = evaluate(REF, Dose(X=CAPS["X"], L=CAPS["L"], S=0.5), p)["theta"]
+    assert th_both > th_lab
+    assert th_both < 1.0
+    assert th_both - th_lab < 0.05      # a saturated film has little left to give
+
+
+def test_coverage_equivalence_is_exact():
+    """Langmuir occupancies add, so the mass of control that reproduces the lab
+    pair's coverage can be solved in closed form. The page quotes that number,
+    so it has to match what the model actually does."""
+    p = dm.benchmark_params("sophorolipid")
+    eq = dm.control_equivalent_dose(p)
+    got = evaluate(REF, Dose(S=eq["S_equivalent"]), p)["theta"]
+    assert abs(got - eq["theta_lab"]) < 1e-9
+
+
+def test_sds_is_a_worse_film_former_than_the_cosmetic_control():
+    """The negative control has to actually behave like one: much more mass for
+    the same coverage, and a stripping penalty the other never triggers."""
+    soph = dm.benchmark_params("sophorolipid")
+    sds = dm.benchmark_params("sds")
+    assert sds.CMC_S > 10 * soph.CMC_S
+    g_soph = optimal_dose(REF, soph, ("S",))[1]
+    g_sds = optimal_dose(REF, sds, ("S",))[1]
+    assert g_sds < g_soph
+
+
+def test_every_arm_is_scored_on_its_own_best_dose():
+    """A comparison where one arm was handed a bad dose is not a comparison."""
+    p = dm.benchmark_params("sophorolipid")
+    rows = {r["arm"]: r for r in dm.control_comparison(REF, p)}
+    for label, keys in dm.CONTROL_ARMS.items():
+        r = rows[label]
+        for k in dm.ALL_KEYS:
+            if k not in keys:
+                assert r[k] == 0.0, f"{label} used {k}"
+        assert abs(r["G"] - optimal_dose(REF, p, keys)[1]) < 1e-9
+
+
+def test_adding_arms_never_lowers_the_best_achievable_protection():
+    """Superset of coordinates, superset of options. If this fails the
+    optimiser is getting stuck, not the model saying something interesting."""
+    p = dm.benchmark_params("sophorolipid")
+    g_lab = optimal_dose(REF, p, dm.LAB_KEYS)[1]
+    g_spec = optimal_dose(REF, p, DOSE_ORDER)[1]
+    g_all = optimal_dose(REF, p, dm.ALL_KEYS)[1]
+    assert g_spec >= g_lab - 1e-6
+    assert g_all >= g_spec - 1e-6
+
+
+def test_optimiser_declines_the_control_when_the_film_is_already_saturated():
+    """The honest reading of the 'everything' arm: with X and L at their caps
+    the control has almost nothing left to buy, so the optimiser barely uses
+    it. That is sub-additivity, not the control being useless."""
+    p = dm.benchmark_params("sophorolipid")
+    d, _ = optimal_dose(REF, p, dm.ALL_KEYS)
+    assert d.S < 0.1 * p.S_cap
 
 
 if __name__ == "__main__":

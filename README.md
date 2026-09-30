@@ -1,11 +1,76 @@
-# DermaSense v3
+# DermaSense
 
-Streamlit front end for the DermaSense v3 unified model: pollution exposure to
-skin damage, and how much of it four engineered compounds take back.
+Streamlit site for the DermaSense v3 unified model: pollution exposure to skin
+damage, and how much of it the engineered compounds take back.
 
 iGEM IIT Delhi 2026, modelling.
 
-## What it does
+## The site
+
+Four pages, one model underneath.
+
+| page | what it is for |
+|---|---|
+| **Home** | what the project is, the five compounds, and a mini simulator that runs the real model on three sliders |
+| **Dose simulator** | the full cascade: live air quality, questionnaires, a photo route, and seven diagnostic tabs |
+| **Lab vs controls** | the lab's three compounds against the two literature comparators, arm by arm |
+| **How the model works** | the derivation, stage by stage, with every curve drawn by calling the model |
+
+## The compounds
+
+Three from the lab, two controls from the literature. Each lab compound is
+paired with a comparator that does the same job and has better evidence, so a
+result is always reported next to something already known to work.
+
+| key | compound | role | mechanism |
+|---|---|---|---|
+| `P` | Pulcherrimin | lab | UV screen, iron chelation, self-toxicity above 0.4 mg/mL |
+| `X` | Xylolipid | lab | interfacial film, radical scavenging, stripping |
+| `L` | Lyso-ornithine lipid | lab | interfacial film, stripping |
+| `H` | Hyaluronic acid | **control** for `P` | radical scavenging, humectancy |
+| `S` | Benchmark biosurfactant | **control** for `X` and `L` | interfacial film, stripping, self-toxicity |
+
+`S` is the control arm this repository added. It is not a separate model: it
+enters the same competitive Langmuir term in S1a, the same stripping sum in S4
+and the same self-toxicity sum in S6 as the lab surfactants. Only four
+constants differ, and `test_model.py` asserts that giving `S` the lab constants
+makes it behave identically to xylolipid at every stage that both touch.
+
+Two benchmarks ship:
+
+- **Acidic sophorolipid**, the positive control. A cosmetic glycolipid with
+  human skin data: no loss of keratinocyte or fibroblast viability to
+  0.5 mg/mL, and no damage to a 3D epidermis model where SLES did damage it.
+  `CMC_S = 0.09 mg/mL`.
+- **Sodium dodecyl sulfate**, the negative control. The reference irritant of
+  skin science, and what every patch test uses to break a barrier on purpose.
+  `CMC_S = 2.36 mg/mL`, so it needs about 25x the mass to build the same film.
+
+`S` is zero in every default, so every number in the specification reproduces
+unchanged. It only enters when a page asks for it.
+
+### What the control arm actually shows
+
+On the reference day, with each arm optimised on its own:
+
+| arm | G |
+|---|---|
+| Lab biosurfactants (X + L) | 42.2% |
+| Control biosurfactant (sophorolipid) | 24.9% |
+| Lab antioxidant (P) | 14.5% |
+| Control antioxidant (H) | 16.2% |
+
+Two honest readings, both on the page:
+
+1. The lab pair leads on the film side, but almost entirely through **mass
+   efficiency** rather than a different mechanism. Reproducing their coverage
+   with sophorolipid takes about 7.5x the mass, which is above its own safe-use
+   cap. That argument rests on `K_X_ads`, a class C constant nobody measured,
+   so the Lab vs controls page lets a reader sweep it and watch the margin.
+2. **Pulcherrimin loses to hyaluronic acid** on this day, by 1.7 points. That is
+   the control doing its job, and the page says so rather than hiding it.
+
+## What the model does
 
 Two modes, both driven by the same cascade.
 
@@ -171,13 +236,23 @@ seconds; every optimisation runs in well under a second and results are cached.
 | file | what it is |
 |---|---|
 | `dermasense_model.py` | the model. Every equation maps one to one onto a section of the spec. No Streamlit imports, so it is usable from a notebook |
-| `app.py` | the Streamlit interface |
+| `app.py` | entry point: the page shell and the navigation, nothing else |
+| `ui.py` | the shared look, the cached model calls, and the figures more than one page draws |
+| `views/home.py` | landing page |
+| `views/simulator.py` | the full simulator, formerly the whole app |
+| `views/controls.py` | lab compounds against the literature controls |
+| `views/model.py` | the derivation, stage by stage |
+| `smoke_check.py` | renders one page headlessly and reports any exception. A dev convenience, not part of the suite |
 | `dermasense_unified.py` | command line entry point |
 | `env_api.py` | place name to live PM2.5, ozone and UV index, converted to model units. No Streamlit import |
 | `skin_inputs.py` | the questionnaires, and the photo route: skin mask, ITA, the two barrier proxies. No Streamlit import |
 | `test_model.py` | the spec's claims, asserted rather than described |
 | `test_inputs.py` | the input layer's claims, including the tone-fairness ones |
 | `requirements.txt`, `.streamlit/config.toml` | deploy |
+
+```bash
+python smoke_check.py views/controls.py     # renders a page, prints any exception
+```
 
 ## What the app is careful about
 
@@ -224,13 +299,13 @@ is why they multiply rather than add:
 
 | stage | what it does | compounds |
 |---|---|---|
-| S1a | interfacial shielding, competitive Langmuir over one surface | L, X |
+| S1a | interfacial shielding, competitive Langmuir over one surface | L, X, S |
 | S1b | UV screen, Mansur SPF linear in dose | P |
 | S2 | Fenton suppression, iron chelation upstream of scavenging | P |
 | S3 | competitive radical scavenging, one shared denominator | X, H, and the skin itself |
-| S4 | barrier modulation, humectant gain and stripping penalty | H, L, X |
+| S4 | barrier modulation, humectant gain and stripping penalty | H, L, X, S |
 | S5 | delivery timing, the price of sensing before secreting | P, X, H |
-| S6 | self-toxicity, the reason a recommended dose exists at all | P, L, X |
+| S6 | self-toxicity, the reason a recommended dose exists at all | P, L, X, S |
 
 ```
 RSD(e, d) = w_ox R' + (1 - w_ox) B' + Omega D_s
@@ -242,8 +317,15 @@ not just at reference. `test_model.py` asserts it.
 
 ## Evidence classes
 
-32 constants, 11 of them class C, meaning nobody measured them and we chose a
-value. Four class C constants carry most of the spread: `theta_max` (22.6
+40 constants, 22 of them class C, meaning nobody measured them and we chose a
+value. Four of the constants and two of the class C ones were added by the
+control arm; two of those are deliberately set equal to ours, because a control
+tuned to lose is not a control, so where the evidence is silent both arms get
+the same number.
+
+The counts above and everywhere in the app are read off `EVIDENCE` rather than
+typed. Earlier text in this repository claimed "32 constants, 11 class C",
+which never matched the table it was describing. Four class C constants carry most of the spread: `theta_max` (22.6
 points), `assay_xfer` (9.0), `C_crit` (7.8), `kappa_0` (4.8). The Uncertainty
 tab recomputes this ranking for whatever environment is loaded, so the
 experiment priorities are derived rather than quoted.
@@ -255,9 +337,15 @@ unlikely to all be wrong at once, and gives about 17%.
 
 ## Known limits, stated up front
 
-- Both biosurfactants are extrapolated from studies about fruit juice and crude
-  oil. Neither has touched a keratinocyte in the published record, yet together
-  they carry most of the headline number.
+- Both lab biosurfactants are extrapolated from studies about fruit juice and
+  crude oil. Neither has touched a keratinocyte in the published record, yet
+  together they carry most of the headline number. The control biosurfactant is
+  the opposite case: its skin data is real, which is the whole asymmetry the
+  control arm exists to expose.
+- The control comparison is only as good as `K_X_ads` and `CMC_S`. The
+  lyso-ornithine lipid constant is measured; the xylolipid one is inferred. If
+  the real one is several times larger, the mass-efficiency advantage shrinks
+  with it. Tensiometry on both lab surfactants would settle it in an afternoon.
 - The Milani agreement (18.7% predicted against 19% measured) is not a
   validation of the shielding mechanism. Milani's serum contains no film-forming
   surfactant, so the two numbers are not the same number. It validates the scale

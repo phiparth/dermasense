@@ -184,6 +184,31 @@ def fetch_live_environment(place: Place) -> LiveEnvironment:
     )
 
 
+def fetch_hourly_profile(place: Place, days: int = 1) -> Dict[str, list]:
+    """Hour-by-hour PM2.5, ozone and UV index for one place, today onward.
+
+    Same feed and units as fetch_live_environment, so an hour of this profile
+    can go straight into the model. Missing hours come back as None and are
+    left for the caller to drop.
+    """
+    data = _get(AIRQ_URL, {
+        "latitude": place.lat, "longitude": place.lon,
+        "hourly": "pm2_5,ozone,uv_index",
+        "forecast_days": max(1, min(days, 5)),
+        "timezone": "auto",
+    })
+    h = data.get("hourly") or {}
+    times = h.get("time") or []
+    if not times:
+        raise EnvLookupError("the air-quality feed answered without an hourly profile")
+    return {
+        "time": list(times),
+        "pm25": list(h.get("pm2_5") or [None] * len(times)),
+        "o3": list(h.get("ozone") or [None] * len(times)),
+        "uv_index": list(h.get("uv_index") or [None] * len(times)),
+    }
+
+
 def lookup(query: str) -> LiveEnvironment:
     """geocode + fetch in one call, taking the first candidate."""
     hits = geocode(query, count=1)

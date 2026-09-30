@@ -40,6 +40,10 @@ EVIDENCE: Dict[str, str] = {
     "eta_H": "A", "K_H": "C", "C_crit": "C", "strip": "C",
     "eta_post": "A", "tau_h": "B",
     "rho_P": "B", "C_horm": "B", "n_horm": "C",
+    # benchmark biosurfactant S, the control arm for X and L. Values are
+    # swapped per benchmark by benchmark_params(); these tags are for the
+    # default one, acidic sophorolipid.
+    "CMC_S": "B", "C_crit_S": "C", "strip_S": "C", "S_cap": "B",
 }
 
 # low / high band for the constants that carry the uncertainty
@@ -162,6 +166,17 @@ class Params:
     C_horm: float = 0.40
     n_horm: float = 2.0
 
+    # -- control arm, benchmark biosurfactant S --------------------------------
+    # Hyaluronic acid is the known comparator on the antioxidant / humectant
+    # side. S is its counterpart on the film side: a biosurfactant that is
+    # already sold for skin, run through exactly the same S1a / S4 / S6 terms
+    # as xylolipid and lyso-ornithine lipid, so a head-to-head is like for like.
+    # Zero dose by default, so every spec number is untouched.
+    CMC_S: float = 0.09           # mg/mL, acidic sophorolipid, 1.3e-4 M x ~690 g/mol
+    C_crit_S: float = 1.00        # set equal to C_crit on purpose: like-for-like
+    strip_S: float = 0.25         # likewise equal to strip
+    S_cap: float = 0.50           # no keratinocyte / 3D-skin toxicity up to 0.5 mg/mL
+
     # -- numerics --------------------------------------------------------------
     eps_guard: float = 1e-3
 
@@ -178,6 +193,7 @@ CAP_REASON: Dict[str, str] = {
     "X": "top of Nageshwar's measured 0.05-0.30 working range",
     "L": "chassis titre ceiling (Li 2024, 10 mg/L), not an evidence bound",
     "H": "Shaheen's applied dose",
+    "S": "benchmark's safe-use ceiling, set per benchmark",
 }
 DOSE_ORDER: Tuple[str, ...] = ("P", "X", "L", "H")
 COMPOUND_NAME: Dict[str, str] = {
@@ -185,7 +201,95 @@ COMPOUND_NAME: Dict[str, str] = {
     "X": "Xylolipid",
     "L": "Lyso-ornithine lipid",
     "H": "Hyaluronic acid",
+    "S": "Benchmark biosurfactant",
 }
+
+# The lab's three compounds and the two controls, each paired by mechanism.
+# H benchmarks P (antioxidant, plus the humectant channel no lab compound has);
+# S benchmarks X and L (film formers).
+ALL_KEYS: Tuple[str, ...] = ("P", "X", "L", "H", "S")
+LAB_KEYS: Tuple[str, ...] = ("P", "X", "L")
+CONTROL_KEYS: Tuple[str, ...] = ("H", "S")
+ROLE: Dict[str, str] = {
+    "P": "lab, antioxidant",
+    "X": "lab, biosurfactant",
+    "L": "lab, biosurfactant",
+    "H": "control, antioxidant + humectant",
+    "S": "control, biosurfactant",
+}
+
+
+@dataclass(frozen=True)
+class Benchmark:
+    """One candidate for the control biosurfactant slot S."""
+    key: str
+    name: str
+    role: str
+    CMC_S: float
+    C_crit_S: float
+    strip_S: float
+    S_cap: float
+    evidence: str
+    note: str
+    sources: Tuple[str, ...] = ()
+
+
+BENCHMARKS: Dict[str, Benchmark] = {
+    "sophorolipid": Benchmark(
+        key="sophorolipid",
+        name="Acidic sophorolipid",
+        role="positive control",
+        CMC_S=0.09, C_crit_S=1.00, strip_S=0.25, S_cap=0.50,
+        evidence="CMC class B, cap class B, stripping class C (set equal to ours)",
+        note=("A glycolipid biosurfactant already sold as a leave-on skincare "
+              "ingredient. Unlike xylolipid and lyso-ornithine lipid it has "
+              "human skin data: no loss of keratinocyte or fibroblast viability "
+              "up to 0.5 mg/mL, and no damage to a 3D epidermis model where SLES "
+              "did damage it. That is exactly what a control needs to be: the "
+              "same mechanism, better evidence."),
+        sources=(
+            "CMC 1.3e-4 M, fluorescence probe (PubMed 23156775); ~50 mg/L elsewhere",
+            "Purified acidic sophorolipids vs synthetic surfactants, 3D skin model, "
+            "Fermentation 2023, 9(11), 985",
+            "Glycolipid biosurfactants on human keratinocytes (PMC9750927)",
+            "Lourith & Kanlayavattanakul 2009, Int J Cosmet Sci, glycolipids in cosmetics",
+        ),
+    ),
+    "sds": Benchmark(
+        key="sds",
+        name="Sodium dodecyl sulfate",
+        role="negative control",
+        CMC_S=2.36, C_crit_S=2.50, strip_S=0.50, S_cap=10.0,
+        evidence="CMC class A (8.2 mM), threshold and stripping class C",
+        note=("The reference irritant of skin science, and the surfactant every "
+              "patch test uses to break a barrier on purpose. It forms a film "
+              "like any surfactant, but needs ~25x more mass than sophorolipid "
+              "to do it and strips lipids at concentrations it is sold at. It "
+              "shows what the S4 and S6 penalties look like when they bite."),
+        sources=(
+            "CMC 8.2 mM in water (~2.36 mg/mL), standard value",
+            "0.25-1% SLS occlusive patch = standard barrier-disruption model",
+        ),
+    ),
+}
+DEFAULT_BENCHMARK = "sophorolipid"
+
+
+def benchmark_params(key: str, p: "Params | None" = None) -> "Params":
+    """Params with the S slot filled by the named benchmark."""
+    b = BENCHMARKS[key]
+    base = NOMINAL if p is None else p
+    return base.with_values(CMC_S=b.CMC_S, C_crit_S=b.C_crit_S,
+                            strip_S=b.strip_S, S_cap=b.S_cap)
+
+
+def cap_of(k: str, p: "Params | None" = None) -> float:
+    """Upper bound of the validity domain for one coordinate. S depends on
+    which benchmark is loaded; the other four are fixed."""
+    if k == "S":
+        return (NOMINAL if p is None else p).S_cap
+    return CAPS[k]
+
 
 A0_HEALTHY = 1.00
 A0_COMPROMISED = 0.65
@@ -212,14 +316,17 @@ class Dose:
     X: float = 0.0
     L: float = 0.0
     H: float = 0.0
+    S: float = 0.0                # control biosurfactant, zero unless asked for
 
-    def as_array(self) -> np.ndarray:
-        return np.array([self.P, self.X, self.L, self.H], dtype=float)
+    def as_array(self, keys: Tuple[str, ...] = DOSE_ORDER) -> np.ndarray:
+        return np.array([getattr(self, k) for k in keys], dtype=float)
 
     @staticmethod
-    def from_array(v) -> "Dose":
+    def from_array(v, keys: Tuple[str, ...] | None = None) -> "Dose":
         v = np.asarray(v, dtype=float)
-        return Dose(P=float(v[0]), X=float(v[1]), L=float(v[2]), H=float(v[3]))
+        if keys is None:
+            keys = DOSE_ORDER if len(v) == 4 else ALL_KEYS
+        return Dose(**{k: float(x) for k, x in zip(keys, v)})
 
     def clipped(self) -> "Dose":
         return Dose(
@@ -227,6 +334,7 @@ class Dose:
             X=float(np.clip(self.X, 0.0, CAPS["X"])),
             L=float(np.clip(self.L, 0.0, CAPS["L"])),
             H=float(np.clip(self.H, 0.0, CAPS["H"])),
+            S=max(0.0, float(self.S)),
         )
 
 
@@ -289,7 +397,7 @@ def evaluate(e: Environment, d: Dose, p: Params = NOMINAL) -> Dict[str, float]:
 
     With d = 0 this collapses exactly to Part 1 (verified to 1e-12).
     """
-    d = Dose(float(d.P), float(d.X), float(d.L), float(d.H))
+    d = Dose(float(d.P), float(d.X), float(d.L), float(d.H), float(d.S))
     eta = eta_of_t(e.lag_h, p)
     fpt = f_PT(e.PT, p)
     nR = N_R(p)
@@ -314,7 +422,9 @@ def evaluate(e: Environment, d: Dose, p: Params = NOMINAL) -> Dict[str, float]:
     # -- S1a interfacial shielding --------------------------------------------
     occ_L = d.L / p.CMC_L
     occ_X = d.X / p.K_X_ads
-    theta = (occ_L + occ_X) / (1.0 + occ_L + occ_X)
+    occ_S = d.S / p.CMC_S         # the control competes for the same interface
+    occ = occ_L + occ_X + occ_S
+    theta = occ / (1.0 + occ)
     sigma_PM = 1.0 - p.theta_max * theta
     sigma_gas = 1.0 - p.theta_max * p.phi_gas * theta
     C_PM_t = sigma_PM * e.C_PM
@@ -344,7 +454,8 @@ def evaluate(e: Environment, d: Dose, p: Params = NOMINAL) -> Dict[str, float]:
     # -- S4 barrier modulation -------------------------------------------------
     dT_t = p.alpha_PM * C_PM_t + p.alpha_O3 * C_O3_t
     Gamma_H = discount(1.0 - p.eta_H * hill(d.H, p.K_H, 1.0), eta)
-    Psi = 1.0 + p.strip * (max(0.0, d.L - p.C_crit) + max(0.0, d.X - p.C_crit))
+    Psi = (1.0 + p.strip * (max(0.0, d.L - p.C_crit) + max(0.0, d.X - p.C_crit))
+           + p.strip_S * max(0.0, d.S - p.C_crit_S))
     dT_prime = dT_t * Gamma_H * Psi
     B_t = dT_prime / dT_ref
     T_prime = (p.T0 + dT_t) * Gamma_H * Psi
@@ -353,7 +464,8 @@ def evaluate(e: Environment, d: Dose, p: Params = NOMINAL) -> Dict[str, float]:
     omega_P = p.rho_P * hill(d.P, p.C_horm, p.n_horm)
     omega_X = p.strip * hill(d.X, p.C_crit, p.n_horm)
     omega_L = p.strip * hill(d.L, p.C_crit, p.n_horm)
-    Omega = omega_P + omega_X + omega_L
+    omega_S = p.strip_S * hill(d.S, p.C_crit_S, p.n_horm)
+    Omega = omega_P + omega_X + omega_L + omega_S
     D_s = p.w_ox * (R_gen_t / (1.0 + kappa_endo_t)) / nR + (1.0 - p.w_ox) * (dT_t / dT_ref)
     penalty = Omega * D_s
 
@@ -368,7 +480,7 @@ def evaluate(e: Environment, d: Dose, p: Params = NOMINAL) -> Dict[str, float]:
         "R_gen": R_gen, "kappa_endo": kappa_endo_0, "Phi_scav": Phi_0,
         "R": R_norm, "dT": dT, "B": B, "T": T_abs, "RSD0": RSD0,
         # S1
-        "occ_L": occ_L, "occ_X": occ_X, "theta": theta,
+        "occ_L": occ_L, "occ_X": occ_X, "occ_S": occ_S, "theta": theta,
         "sigma_PM": sigma_PM, "sigma_gas": sigma_gas,
         "C_PM_t": C_PM_t, "C_O3_t": C_O3_t,
         "SPF": SPF, "tau_UV": tau_UV,
@@ -383,6 +495,7 @@ def evaluate(e: Environment, d: Dose, p: Params = NOMINAL) -> Dict[str, float]:
         "dT_prime": dT_prime, "B_prime": B_t, "T_prime": T_prime,
         # S6
         "omega_P": omega_P, "omega_X": omega_X, "omega_L": omega_L,
+        "omega_S": omega_S,
         "Omega": Omega, "D_s": D_s, "penalty": penalty,
         # outputs
         "RSD": RSD, "G": G,
@@ -409,26 +522,40 @@ _STARTS: List[np.ndarray] = [
 ]
 
 
-def optimal_dose(e: Environment, p: Params = NOMINAL) -> Tuple[Dose, float]:
+def optimal_dose(e: Environment, p: Params = NOMINAL,
+                 keys: Tuple[str, ...] = DOSE_ORDER) -> Tuple[Dose, float]:
     """Inverse mode. Environment in, dose out.
+
+    keys picks which coordinates the optimiser may use; the rest stay at zero.
+    The default is the spec's four-compound formulation. Pass ALL_KEYS to let
+    the control biosurfactant in as well.
 
     Box constraints are passed to SLSQP as bounds, never as penalty terms. A
     penalty implementation walks outside D during the search, evaluates the
     model where it is not defined, and can converge onto the descending limb
     from outside.
     """
+    keys = tuple(keys)
+    caps = np.array([cap_of(k, p) for k in keys])
+    bounds = [(0.0, float(c)) for c in caps]
+
     def neg_G(v):
-        return -protection(e, Dose.from_array(v), p)
+        return -protection(e, Dose.from_array(v, keys), p)
+
+    if keys == DOSE_ORDER:
+        starts = _STARTS
+    else:
+        starts = [caps * f for f in (0.29, 0.5, 0.05, 0.0, 1.0)]
 
     best_v, best_G = None, -np.inf
-    for x0 in _STARTS:
-        res = minimize(neg_G, x0, method="SLSQP", bounds=_BOUNDS,
+    for x0 in starts:
+        res = minimize(neg_G, x0, method="SLSQP", bounds=bounds,
                        options={"maxiter": 400, "ftol": 1e-12})
-        v = np.clip(res.x, [b[0] for b in _BOUNDS], [b[1] for b in _BOUNDS])
-        g = protection(e, Dose.from_array(v), p)
+        v = np.clip(res.x, 0.0, caps)
+        g = protection(e, Dose.from_array(v, keys), p)
         if g > best_G:
             best_v, best_G = v, g
-    return Dose.from_array(best_v), float(best_G)
+    return Dose.from_array(best_v, keys), float(best_G)
 
 
 def optimal_scale(e: Environment, ratio: np.ndarray, p: Params = NOMINAL
@@ -506,10 +633,10 @@ STAGE_SUBSETS: Dict[str, Tuple[str, ...]] = {
 def _opt_subset(e: Environment, keys: Tuple[str, ...], p: Params) -> float:
     def neg_G(v):
         return -protection(e, Dose(**dict(zip(keys, v))), p)
-    b = [(0.0, CAPS[k]) for k in keys]
+    b = [(0.0, cap_of(k, p)) for k in keys]
     best = 0.0
     for frac in (0.3, 0.9, 0.05):
-        x0 = np.array([CAPS[k] * frac for k in keys])
+        x0 = np.array([cap_of(k, p) * frac for k in keys])
         res = minimize(neg_G, x0, method="SLSQP", bounds=b,
                        options={"maxiter": 400, "ftol": 1e-12})
         best = max(best, float(-res.fun))
@@ -616,26 +743,95 @@ def dose_spread(exposures: List[Environment], p: Params = NOMINAL):
     return rows
 
 
-def dose_notes(d: Dose) -> List[Dict[str, str]]:
+def dose_notes(d: Dose, keys: Tuple[str, ...] = DOSE_ORDER,
+               p: Params = NOMINAL) -> List[Dict[str, str]]:
     """Flag which coordinates are real optima and which are just the edge of
     the evidence. A dose table with four numbers in it reads like four
     recommendations, and only one of them is."""
     out = []
-    for k in DOSE_ORDER:
+    for k in keys:
         v = getattr(d, k)
-        cap = CAPS[k]
+        cap = cap_of(k, p)
         at_cap = v >= cap - 1e-6
         out.append({
             "key": k,
             "compound": COMPOUND_NAME[k],
+            "role": ROLE[k],
             "dose": v,
             "cap": cap,
             "position": "at cap" if at_cap else "interior optimum",
             "meaning": ("we ran out of evidence, not that this is the right amount"
                         if at_cap else "genuine optimum, more would be worse"),
-            "cap_reason": CAP_REASON[k],
+            "cap_reason": CAP_REASON.get(k, "benchmark's safe-use ceiling"),
         })
     return out
+
+
+# ----------------------------------------------------------------------------
+# controls: the lab's compounds against the known comparators
+# ----------------------------------------------------------------------------
+
+# Each arm is optimised on its own, everything else at zero, so every bar in a
+# head-to-head is the best that arm can do rather than an arbitrary dose.
+CONTROL_ARMS: Dict[str, Tuple[str, ...]] = {
+    "Lab antioxidant (P)": ("P",),
+    "Control antioxidant (H)": ("H",),
+    "Lab biosurfactants (X + L)": ("X", "L"),
+    "Control biosurfactant (S)": ("S",),
+    "Lab formulation (P + X + L)": ("P", "X", "L"),
+    "Controls only (H + S)": ("H", "S"),
+    "Spec formulation (P + X + L + H)": ("P", "X", "L", "H"),
+    "Everything (P + X + L + H + S)": ALL_KEYS,
+}
+
+
+def control_comparison(e: Environment, p: Params = NOMINAL) -> List[Dict[str, float]]:
+    """Best G for every arm in CONTROL_ARMS, with the dose that gets it."""
+    rows = []
+    for label, keys in CONTROL_ARMS.items():
+        d, g = optimal_dose(e, p, keys)
+        r = evaluate(e, d, p)
+        rows.append({
+            "arm": label, "keys": "".join(keys), "G": g,
+            "RSD": r["RSD"], "RSD0": r["RSD0"],
+            "theta": r["theta"], "B_prime": r["B_prime"], "R_prime": r["R_prime"],
+            "TEWL_improvement": r["TEWL_improvement"], "Omega": r["Omega"],
+            "mass_mg_per_mL": float(sum(getattr(d, k) for k in keys)),
+            **{k: getattr(d, k) for k in ALL_KEYS},
+        })
+    return rows
+
+
+def half_coverage_dose(p: Params = NOMINAL) -> Dict[str, float]:
+    """Concentration at which each film former alone covers half the interface.
+    This is the Langmuir constant itself, and the cleanest single number for
+    comparing film formers by mass efficiency."""
+    return {"L": p.CMC_L, "X": p.K_X_ads, "S": p.CMC_S}
+
+
+def coverage_alone(k: str, c, p: Params = NOMINAL):
+    """theta for one film former alone, vectorised over c."""
+    K = half_coverage_dose(p)[k]
+    c = np.asarray(c, dtype=float)
+    return (c / K) / (1.0 + c / K)
+
+
+def control_equivalent_dose(p: Params = NOMINAL, X: float | None = None,
+                            L: float | None = None) -> Dict[str, float]:
+    """How much of the control biosurfactant reproduces the coverage of the lab
+    pair at (X, L), caps by default. Langmuir occupancies add, so the answer is
+    exact: S_eq = CMC_S (X / K_X_ads + L / CMC_L)."""
+    X = CAPS["X"] if X is None else X
+    L = CAPS["L"] if L is None else L
+    occ = X / p.K_X_ads + L / p.CMC_L
+    s_eq = p.CMC_S * occ
+    return {
+        "theta_lab": occ / (1.0 + occ),
+        "lab_mass": X + L,
+        "S_equivalent": s_eq,
+        "mass_ratio": s_eq / (X + L) if (X + L) > 0 else float("nan"),
+        "within_S_cap": s_eq <= p.S_cap,
+    }
 
 
 __all__ = [
@@ -647,4 +843,8 @@ __all__ = [
     "evaluate", "protection", "optimal_dose", "optimal_scale", "min_cost_dose",
     "single_compound_optima", "conservative_params", "monte_carlo",
     "sensitivity", "dose_spread", "dose_notes",
+    "ALL_KEYS", "LAB_KEYS", "CONTROL_KEYS", "ROLE", "Benchmark", "BENCHMARKS",
+    "DEFAULT_BENCHMARK", "benchmark_params", "cap_of", "CONTROL_ARMS",
+    "control_comparison", "half_coverage_dose", "coverage_alone",
+    "control_equivalent_dose",
 ]
