@@ -21,7 +21,9 @@ st.set_page_config(
 ui.apply_theme()
 
 pages = [
-    st.Page("views/home.py", title="Home", icon=":material/home:", default=True),
+    st.Page("views/cover.py", title="Cover", icon=":material/spa:", url_path="cover",
+            default=True),
+    st.Page("views/home.py", title="Home", icon=":material/home:", url_path="home"),
     st.Page("views/simulator.py", title="Dose simulator", icon=":material/science:"),
     st.Page("views/controls.py", title="Lab vs controls", icon=":material/compare_arrows:"),
     st.Page("views/model.py", title="How the model works", icon=":material/functions:"),

@@ -7,10 +7,11 @@ iGEM IIT Delhi 2026, modelling.
 
 ## The site
 
-Four pages, one model underneath.
+Five pages, one model underneath.
 
 | page | what it is for |
 |---|---|
+| **Cover** | the page that opens first: title, one line, one button. The navigation bar is hidden here on purpose |
 | **Home** | what the project is, the five compounds, and a mini simulator that runs the real model on three sliders |
 | **Dose simulator** | the full cascade: live air quality, questionnaires, a photo route, and seven diagnostic tabs |
 | **Lab vs controls** | the lab's three compounds against the two literature comparators, arm by arm |
@@ -238,7 +239,8 @@ seconds; every optimisation runs in well under a second and results are cached.
 | `dermasense_model.py` | the model. Every equation maps one to one onto a section of the spec. No Streamlit imports, so it is usable from a notebook |
 | `app.py` | entry point: the page shell and the navigation, nothing else |
 | `ui.py` | the shared look, the cached model calls, and the figures more than one page draws |
-| `views/home.py` | landing page |
+| `views/cover.py` | the cover, opened first at `/` |
+| `views/home.py` | landing page, at `/home` |
 | `views/simulator.py` | the full simulator, formerly the whole app |
 | `views/controls.py` | lab compounds against the literature controls |
 | `views/model.py` | the derivation, stage by stage |
