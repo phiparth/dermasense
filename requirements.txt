@@ -1,3 +1,4 @@
+# bump to force a clean restart on Streamlit Cloud (stale dermasense_model after the multi-page push)
 streamlit>=1.50
 numpy>=1.26
 scipy>=1.11
