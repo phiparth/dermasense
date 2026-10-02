@@ -280,6 +280,8 @@ st.divider()
 
 st.subheader("What this model cannot tell you")
 
+_ref_total = dm.formulation_ratio(Dose(*_ref_dose_k))["total"]
+
 k1, k2, k3 = st.columns(3)
 with k1:
     ui.flag(
@@ -296,6 +298,16 @@ with k2:
     )
 with k3:
     ui.flag(
+        f"<b>Our dose is tiny next to the market.</b> The whole formulation is "
+        f"about {_ref_total / dm.PCT_TO_MG_PER_ML:.2f} % by weight, at or below the "
+        "bottom of every published commercial range, and a vitamin C serum carries "
+        "a hundred times the antioxidant mass. The case has to be that this "
+        "responds to the day, not that it delivers more."
+    )
+
+st.write("")
+with st.container():
+    ui.flag(
         "<b>One unmeasured constant dominates.</b> theta_max, the fraction of "
         "particles a saturated film can stop, moves the answer by more than twenty "
         "points across its plausible range. Nobody has measured it. That experiment "
@@ -303,7 +315,7 @@ with k3:
     )
 
 st.write("")
-n1, n2, n3 = st.columns(3)
+n1, n2, n3, n4 = st.columns(4)
 with n1:
     st.page_link("views/simulator.py", label="Open the dose simulator",
                  icon=":material/science:")
@@ -311,6 +323,9 @@ with n2:
     st.page_link("views/controls.py", label="Lab compounds vs the controls",
                  icon=":material/compare_arrows:")
 with n3:
+    st.page_link("views/market.py", label="Lab vs the market",
+                 icon=":material/storefront:")
+with n4:
     st.page_link("views/model.py", label="How the model works",
                  icon=":material/functions:")
 

@@ -7,14 +7,15 @@ iGEM IIT Delhi 2026, modelling.
 
 ## The site
 
-Five pages, one model underneath.
+Six pages, one model underneath.
 
 | page | what it is for |
 |---|---|
 | **Cover** | the page that opens first: title, one line, one button. The navigation bar is hidden here on purpose |
 | **Home** | what the project is, the five compounds, and a mini simulator that runs the real model on three sliders |
 | **Dose simulator** | the full cascade: live air quality, questionnaires, a photo route, and seven diagnostic tabs |
-| **Lab vs controls** | the lab's three compounds against the two literature comparators, arm by arm |
+| **Lab vs controls** | the lab's three compounds against the literature comparators, arm by arm |
+| **Lab vs market** | what commercial products actually carry, in the model's units, next to what we recommend |
 | **How the model works** | the derivation, stage by stage, with every curve drawn by calling the model |
 
 ## The compounds
@@ -37,15 +38,27 @@ and the same self-toxicity sum in S6 as the lab surfactants. Only four
 constants differ, and `test_model.py` asserts that giving `S` the lab constants
 makes it behave identically to xylolipid at every stage that both touch.
 
-Two benchmarks ship:
+Five benchmarks ship. Four of them (every one but decyl glucoside) have their
+CMC and their HaCaT keratinocyte LC50 measured in the same study, so efficiency
+and tolerance are comparable across the row rather than stitched from five
+methods.
 
-- **Acidic sophorolipid**, the positive control. A cosmetic glycolipid with
-  human skin data: no loss of keratinocyte or fibroblast viability to
-  0.5 mg/mL, and no damage to a 3D epidermis model where SLES did damage it.
-  `CMC_S = 0.09 mg/mL`.
-- **Sodium dodecyl sulfate**, the negative control. The reference irritant of
-  skin science, and what every patch test uses to break a barrier on purpose.
-  `CMC_S = 2.36 mg/mL`, so it needs about 25x the mass to build the same film.
+| benchmark | CMC, mg/mL | keratinocyte LC50, mg/mL | what it is |
+|---|---|---|---|
+| Acidic sophorolipid | 1.0 | 20.93 | the cosmetic glycolipid: gentle, and a weak film former per mg |
+| Rhamnolipid | 0.038 | 0.165 | closest published relative of xylolipid: efficient, not gentle |
+| Surfactin | 0.016 | 0.080 | a lipopeptide, nearest analogue to lyso-ornithine lipid: best film, worst tolerance |
+| Decyl glucoside | 0.32 | ~20 (patch tests) | what a formulator actually reaches for |
+| Sodium dodecyl sulfate | 2.36 | ~0.1 | the OECD/ICCVAM reference irritant: poor film, no safety window |
+
+`C_crit_S` is that measured LC50, and it drives the stripping onset and the
+self-toxicity half point exactly as the lab compounds' own `C_crit` does. Every
+cap is 1 mg/mL, the same ceiling hyaluronic acid has.
+
+**The asymmetry worth stating.** The controls' tolerance is measured on
+keratinocytes; ours is assumed at 1 mg/mL, because xylolipid and lyso-ornithine
+lipid have never touched one. The Lab vs controls page sweeps that assumption
+down to surfactin's measured value and shows whether the lead survives.
 
 `S` is zero in every default, so every number in the specification reproduces
 unchanged. It only enters when a page asks for it.
@@ -70,6 +83,40 @@ Two honest readings, both on the page:
    so the Lab vs controls page lets a reader sweep it and watch the margin.
 2. **Pulcherrimin loses to hyaluronic acid** on this day, by 1.7 points. That is
    the control doing its job, and the page says so rather than hiding it.
+
+## The market comparison
+
+A cosmetic label gives % w/w; the model works in mg/mL. At a density of about
+1 g/mL that is a factor of ten, and the factor is most of the comparison.
+
+| | what the market carries | our cap | we recommend |
+|---|---|---|---|
+| Antioxidant / humectant | 0.1 - 2 % (1 - 20 mg/mL) | 1 mg/mL | 1.0 mg/mL |
+| Surfactant / film | 0.05 - 5 % (0.5 - 50 mg/mL) | 1 mg/mL | 0.31 mg/mL |
+
+The whole recommended formulation is **1.40 mg/mL, about 0.14 % by weight**, at
+or below the bottom of every published commercial range. The ratio runs the
+other way too: we land at **3.5 : 1** antioxidant to film former where the market
+is **0.9 : 1** at typical levels, because commercial surfactant is dosed to
+emulsify a product rather than to protect skin.
+
+Scored through the model, a low-end market product (1 mg/mL hyaluronic acid,
+0.5 mg/mL sophorolipid) sits inside the validity domain and reaches G = 25.6 %
+against our 55.8 %. At typical and high levels the comparison stops being
+evidence: the stripping term is linear and unbounded above its threshold and was
+fitted nowhere near 50 mg/mL, so it runs away to absurd numbers. The page prints
+both the raw score and the score with every dose held at its cap, and labels
+every row with how far outside the domain it is.
+
+Two things the comparison does **not** establish: that we beat a market product
+(only the low-end row is a like-for-like the model supports), and that more
+product would be worse (the high-end collapse is an artefact of an unbounded
+term). The category's headline antioxidants, 10-20 % vitamin C and 1 % vitamin
+E, cannot enter the model at all: it has one scavenging channel needing a rate
+constant measured the same way for every compound in it, and nobody has run that
+assay for ascorbic acid. They are listed on the page as a scale comparison only.
+A vitamin C serum carries 100-200 mg/mL of one antioxidant; our entire
+formulation is 1.4 mg/mL.
 
 ## What the model does
 
@@ -243,6 +290,7 @@ seconds; every optimisation runs in well under a second and results are cached.
 | `views/home.py` | landing page, at `/home` |
 | `views/simulator.py` | the full simulator, formerly the whole app |
 | `views/controls.py` | lab compounds against the literature controls |
+| `views/market.py` | commercial concentrations against the recommendation |
 | `views/model.py` | the derivation, stage by stage |
 | `smoke_check.py` | renders one page headlessly and reports any exception. A dev convenience, not part of the suite |
 | `dermasense_unified.py` | command line entry point |

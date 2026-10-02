@@ -26,6 +26,7 @@ pages = [
     st.Page("views/home.py", title="Home", icon=":material/home:", url_path="home"),
     st.Page("views/simulator.py", title="Dose simulator", icon=":material/science:"),
     st.Page("views/controls.py", title="Lab vs controls", icon=":material/compare_arrows:"),
+    st.Page("views/market.py", title="Lab vs market", icon=":material/storefront:"),
     st.Page("views/model.py", title="How the model works", icon=":material/functions:"),
 ]
 
