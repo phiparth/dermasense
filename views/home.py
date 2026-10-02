@@ -183,12 +183,32 @@ with left:
                           key="home_pt")
     barrier = st.radio("Barrier", ["Healthy", "Compromised"], horizontal=True,
                        key="home_barrier")
+    bench = ui.benchmark_picker(
+        "home", label="Control surfactant to compare against",
+        help="Hyaluronic acid is the control for the antioxidant side. This is "
+             "the control for the film side. Both are run through the same "
+             "equations as our own compounds.",
+    )
 
 e = Environment(C_PM=float(pm), C_O3=float(o3), I_UV=float(uv), PT=int(pt),
                 A0=dm.A0_HEALTHY if barrier == "Healthy" else dm.A0_COMPROMISED)
-dose_k, G = ui.c_optimal(ui.ekey(e), ui.pkey(dm.NOMINAL))
+params = dm.benchmark_params(bench)
+B = dm.BENCHMARKS[bench]
+
+dose_k, G = ui.c_optimal(ui.ekey(e), ui.pkey(params), dm.DOSE_ORDER)
 dose = Dose(*dose_k)
-res = ui.c_evaluate(ui.ekey(e), dose_k, ui.pkey(dm.NOMINAL))
+res = ui.c_evaluate(ui.ekey(e), dose_k, ui.pkey(params))
+
+# The three arms, each optimised on its own, so every bar is the best that arm
+# can do rather than an arbitrary dose.
+ARMS = [
+    ("Our compounds<br>P + X + L", dm.LAB_KEYS, "#2f6f4f"),
+    (f"Both controls<br>HA + {B.name}", dm.CONTROL_KEYS, COLOR["S"]),
+    ("All five<br>together", dm.ALL_KEYS, INK),
+]
+arm_G = {}
+for label, keys, _ in ARMS:
+    arm_G[label] = ui.c_optimal(ui.ekey(e), ui.pkey(params), keys)[1]
 
 with right:
     g1, g2 = st.columns([1, 1.3])
@@ -199,7 +219,7 @@ with right:
         bar = go.Figure()
         keys = dm.DOSE_ORDER
         bar.add_bar(
-            x=[getattr(dose, k) / dm.cap_of(k) * 100 for k in keys],
+            x=[getattr(dose, k) / dm.cap_of(k, params) * 100 for k in keys],
             y=[ui.compound_label(k) for k in keys],
             orientation="h",
             marker_color=[COLOR[k] for k in keys],
@@ -213,13 +233,45 @@ with right:
         st.plotly_chart(bar, width="stretch", key="home_dose",
                         config={"displayModeBar": False})
 
-    st.plotly_chart(ui.waterfall_figure(e, dose, dm.NOMINAL, 300), width="stretch",
-                    key="home_waterfall", config={"displayModeBar": False})
+    a1, a2 = st.columns([1, 1.25])
+    with a1:
+        af = go.Figure()
+        af.add_bar(
+            x=[arm_G[l] * 100 for l, _, _ in ARMS],
+            y=[l for l, _, _ in ARMS],
+            orientation="h",
+            marker=dict(color=[c for _, _, c in ARMS],
+                        pattern=dict(shape=["", "/", ""], fgcolor="white", size=5)),
+            text=[f"{arm_G[l] * 100:.1f}%" for l, _, _ in ARMS],
+            textposition="auto",
+            hovertemplate="%{y}<br>G = %{x:.1f}%<extra></extra>",
+        )
+        ui.style(af, 300, showlegend=False,
+                 xaxis=dict(title="protection G, %", range=[0, 72]),
+                 yaxis=dict(autorange="reversed"),
+                 margin=dict(l=0, r=0, t=26, b=0))
+        st.plotly_chart(af, width="stretch", key="home_arms",
+                        config={"displayModeBar": False})
+    with a2:
+        st.plotly_chart(ui.waterfall_figure(e, dose, params, 300), width="stretch",
+                        key="home_waterfall", config={"displayModeBar": False})
+
     st.caption(
-        f"Damage falls from {res['RSD0']:.2f} to {res['RSD']:.2f} on this day. "
-        "The film acts first, upstream of everything else, which is why it carries "
-        "the largest single step."
+        f"Left: each arm optimised on its own. Our three compounds reach "
+        f"{arm_G[ARMS[0][0]] * 100:.1f}%; the two established comparators together, "
+        f"hyaluronic acid and {B.name.lower()}, reach "
+        f"{arm_G[ARMS[1][0]] * 100:.1f}%. Right: how the recommended formulation "
+        f"takes damage from {res['RSD0']:.2f} down to {res['RSD']:.2f} on this day."
     )
+
+ui.note(
+    f"<b>Why the control surfactant is not in the dose table above.</b> The "
+    f"recommendation is our own formulation, and adding {B.name.lower()} on top of "
+    "it buys almost nothing: xylolipid and lyso-ornithine lipid have already "
+    "covered about 96% of the interface, so a third film former has nothing left "
+    "to cover. The comparison that means something is the one on the left, where "
+    "each arm is built from scratch."
+)
 
 ui.flag(
     f"<b>Protection is a ratio, so read it with the absolute number.</b> This day "
@@ -240,7 +292,7 @@ st.subheader("What the model does")
 c1, c2 = st.columns([1.35, 1])
 
 with c1:
-    st.plotly_chart(ui.sankey_figure(res, dm.NOMINAL, 400), width="stretch",
+    st.plotly_chart(ui.sankey_figure(res, params, 400), width="stretch",
                     key="home_sankey", config={"displayModeBar": False})
     st.caption(
         "The oxidative load on this day, in R_gen units, and where each part of it "
