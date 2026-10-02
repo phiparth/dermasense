@@ -1,4 +1,7 @@
-# bump to force a clean restart on Streamlit Cloud (stale dermasense_model after the multi-page push)
+# Touch this file to force Streamlit Cloud to rebuild and restart.
+# A push alone can redeploy new page files into a process still holding the
+# old ui / dermasense_model modules, which then fails on anything added in
+# the same push. Bumped: market page.
 streamlit>=1.50
 numpy>=1.26
 scipy>=1.11
