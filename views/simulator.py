@@ -372,14 +372,12 @@ with st.sidebar:
         params = conservative_params("all")
 
     st.markdown("### Control arm")
-    bench_keys = list(dm.BENCHMARKS)
-    st.selectbox(
-        "Benchmark biosurfactant (S)", bench_keys,
-        index=bench_keys.index(ui.benchmark_key()), key="benchmark",
-        format_func=lambda k: f"{dm.BENCHMARKS[k].name}, {dm.BENCHMARKS[k].role}",
+    ui.benchmark_picker(
+        "sim",
         help="Hyaluronic acid is already the known comparator for the antioxidant "
              "side. This is its counterpart for xylolipid and lyso-ornithine lipid: "
-             "a surfactant with real skin data, run through the same equations.",
+             "an established biosurfactant with real keratinocyte data, run through "
+             "the same equations.",
     )
     params = benchmark_params(ui.benchmark_key(), params)
     FORMULATIONS = {

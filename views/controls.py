@@ -24,7 +24,8 @@ st.markdown(
     f"<span style='color:{MUTED}'>An effect is only worth reporting next to something "
     "already known to work. The specification benchmarks pulcherrimin against "
     "hyaluronic acid. Nothing benchmarked the two biosurfactants, so this page adds "
-    "that control and puts every arm through the same S1a, S4 and S6 terms.</span>",
+    "that control, with five real surfactants to choose from, and puts every arm "
+    "through the same S1a, S4 and S6 terms.</span>",
     unsafe_allow_html=True,
 )
 
@@ -69,15 +70,8 @@ st.write("")
 # benchmark picker
 # ----------------------------------------------------------------------------
 
-bench_keys = list(dm.BENCHMARKS)
-choice = st.radio(
-    "Benchmark in the S slot",
-    bench_keys,
-    index=bench_keys.index(ui.benchmark_key()),
-    horizontal=True,
-    format_func=lambda k: f"{dm.BENCHMARKS[k].name} ({dm.BENCHMARKS[k].role})",
-    key="benchmark",
-)
+choice = ui.benchmark_picker("ctl", kind="radio", label="Benchmark in the S slot",
+                             horizontal=True)
 B = dm.BENCHMARKS[choice]
 params = benchmark_params(choice)
 
@@ -89,12 +83,12 @@ with bc2:
         f"""
         <div class="card">
           <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;
-            color:{MUTED}">its three constants</div>
+            color:{MUTED}">its constants</div>
           <div style="font-family:monospace;font-size:.84rem;line-height:1.7;margin-top:.4rem">
-          CMC_S &nbsp;&nbsp;&nbsp;{B.CMC_S:>6.2f} mg/mL<br>
-          C_crit_S {B.C_crit_S:>6.2f} mg/mL<br>
-          strip_S &nbsp;{B.strip_S:>6.2f}<br>
-          S_cap &nbsp;&nbsp;&nbsp;{B.S_cap:>6.2f} mg/mL</div>
+          CMC_S &nbsp;&nbsp;&nbsp;{B.CMC_S:<7g} mg/mL<br>
+          C_crit_S {B.C_crit_S:<7g} mg/mL<br>
+          strip_S &nbsp;{B.strip_S:<7g}<br>
+          S_cap &nbsp;&nbsp;&nbsp;{B.S_cap:<7g} mg/mL</div>
           <div style="font-size:.74rem;color:{MUTED};margin-top:.5rem">{B.evidence}</div>
         </div>
         """,
@@ -105,9 +99,17 @@ with st.expander("Where these constants come from"):
     for s in B.sources:
         st.markdown(f"- {s}")
     st.caption(
-        "The stripping threshold and slope are deliberately set equal to ours "
-        "wherever nobody measured them separately. A control tuned to lose is not a "
-        "control, so where the evidence is silent the two arms get the same number."
+        "C_crit_S is the measured keratinocyte half-effect concentration wherever "
+        "one exists, and it feeds the stripping onset and the self-toxicity half "
+        "point exactly as the lab surfactants' single C_crit does. The stripping "
+        "slope is set equal to ours: a control tuned to lose is not a control, so "
+        "where the evidence is silent the two arms get the same number."
+    )
+    st.caption(
+        "The asymmetry to keep in view: the control's tolerance is measured on "
+        "keratinocytes, ours is assumed, because xylolipid and lyso-ornithine lipid "
+        "have never touched one. The what-if near the end of this page lets you "
+        "change that assumption."
     )
 
 # ----------------------------------------------------------------------------
@@ -290,6 +292,75 @@ ui.flag(
 st.divider()
 
 # ----------------------------------------------------------------------------
+# 2b. the map of film formers
+# ----------------------------------------------------------------------------
+
+st.subheader("Every film former on one map: efficiency against tolerance")
+st.markdown(
+    f"<span style='color:{MUTED}'>Left is efficient (a little mass covers half the "
+    "surface). Up is gentle (the skin tolerates a lot of it). The corner you want "
+    "is top left, and nothing in the literature sits there: the good film formers "
+    "are toxic, and the gentle ones are weak. Our two compounds are drawn hollow "
+    "because their tolerance is an assumption, not a measurement.</span>",
+    unsafe_allow_html=True,
+)
+
+mp = go.Figure()
+b_alone = {}
+for bk, bb in dm.BENCHMARKS.items():
+    pp = benchmark_params(bk)
+    b_alone[bk] = dm.optimal_dose(env, pp, ("S",))[1]
+tones = {"sophorolipid": "#7a5c99", "rhamnolipid": "#9b4f7d", "surfactin": "#b5446e",
+         "decylglucoside": "#5b7fa6", "sds": "#6b6b6b"}
+for bk, bb in dm.BENCHMARKS.items():
+    mp.add_scatter(
+        x=[bb.CMC_S], y=[bb.C_crit_S], mode="markers+text", text=[bb.name],
+        textposition="top center", textfont=dict(size=11, color=INK),
+        marker=dict(size=14 + 70 * b_alone[bk], color=tones[bk],
+                    line=dict(color="white", width=1.5)),
+        name=bb.name, showlegend=False,
+        hovertemplate=(f"{bb.name}<br>CMC {bb.CMC_S:g} mg/mL<br>"
+                       f"tolerance {bb.C_crit_S:g} mg/mL<br>"
+                       f"alone, G = {b_alone[bk] * 100:.1f}%<extra></extra>"),
+    )
+for k, cmc in (("X", NOMINAL.K_X_ads), ("L", NOMINAL.CMC_L)):
+    mp.add_scatter(
+        x=[cmc], y=[NOMINAL.C_crit], mode="markers+text",
+        text=[dm.COMPOUND_NAME[k]], textposition="bottom center",
+        textfont=dict(size=11, color=COLOR[k]),
+        marker=dict(size=18, color="rgba(255,255,255,0.9)", symbol="circle",
+                    line=dict(color=COLOR[k], width=3)),
+        showlegend=False,
+        hovertemplate=(f"{dm.COMPOUND_NAME[k]}<br>half-coverage {cmc:g} mg/mL"
+                       f"<br>tolerance {NOMINAL.C_crit:g} mg/mL (assumed)<extra></extra>"),
+    )
+    mp.add_scatter(x=[cmc, cmc], y=[0.0804, NOMINAL.C_crit], mode="lines",
+                   line=dict(color=COLOR[k], width=1.5, dash="dot"),
+                   showlegend=False, hoverinfo="skip")
+ui.style(mp, 470,
+         xaxis=dict(title="half-coverage concentration, mg/mL (log): lower is more efficient",
+                    type="log", range=[-3.6, 0.9]),
+         yaxis=dict(title="tolerance, mg/mL (log): higher is gentler", type="log",
+                    range=[-1.4, 1.7]))
+st.plotly_chart(mp, width="stretch", key="ctl_map", config={"displayModeBar": False})
+st.caption(
+    "Bubble size is each benchmark's own best protection, optimised alone. The "
+    "dotted line under each lab compound runs down to surfactin's measured "
+    "tolerance: that is how far our assumption could be wrong if they turn out to "
+    "be as toxic as the harshest biosurfactant on the map."
+)
+
+ui.note(
+    "<b>Rhamnolipid and surfactin find a genuine optimum</b> well below their "
+    "cap, because they build a film at a tiny dose and start harming keratinocytes "
+    "soon after. Sophorolipid and decyl glucoside just run to the cap, because "
+    "nothing inside the domain punishes them. That is the same trade-off that gives "
+    "pulcherrimin the one interior optimum among our own compounds."
+)
+
+st.divider()
+
+# ----------------------------------------------------------------------------
 # 3. what each arm costs the skin
 # ----------------------------------------------------------------------------
 
@@ -417,6 +488,63 @@ else:
         "<b>The margin never reaches zero across the band.</b> The lab pair stays "
         "ahead of this control for every value of K_X_ads the evidence allows, which "
         "is the strongest form this claim can take while the constant is unmeasured."
+    )
+
+st.divider()
+
+# ----------------------------------------------------------------------------
+# 4b. what if our surfactants are as toxic as theirs
+# ----------------------------------------------------------------------------
+
+st.subheader("What if our surfactants turn out to be as toxic as the controls?")
+st.markdown(
+    f"<span style='color:{MUTED}'>The control's tolerance is measured; the lab "
+    "pair's is assumed to be 1 mg/mL. Move it. The two vertical lines are the "
+    "measured keratinocyte tolerances of surfactin and rhamnolipid, the two harshest "
+    "biosurfactants anyone has put on HaCaT cells.</span>",
+    unsafe_allow_html=True,
+)
+
+tol_grid = np.logspace(np.log10(0.05), np.log10(5.0), 18)
+lab_vs_tol = []
+for v in tol_grid:
+    pv = benchmark_params(choice, NOMINAL.with_values(C_crit=float(v)))
+    lab_vs_tol.append(dm.optimal_dose(env, pv, ("X", "L"))[1] * 100)
+ctl_line = dm.optimal_dose(env, params, ("S",))[1] * 100
+
+tf = go.Figure()
+tf.add_scatter(x=tol_grid, y=lab_vs_tol, mode="lines+markers", name="lab pair, X + L",
+               line=dict(color=COLOR["X"], width=2.6), marker=dict(size=6))
+tf.add_hline(y=ctl_line, line=dict(color=COLOR["S"], dash="dash", width=2),
+             annotation_text=f"{B.name}: {ctl_line:.1f}%",
+             annotation_font=dict(size=11, color=COLOR["S"]))
+for tv, lab_ in ((0.0804, "surfactin"), (0.1652, "rhamnolipid")):
+    tf.add_vline(x=tv, line=dict(color=MUTED, dash="dot", width=1),
+                 annotation_text=lab_, annotation_font=dict(size=10, color=MUTED))
+tf.add_vline(x=NOMINAL.C_crit, line=dict(color=SIGNAL, dash="dot", width=1.5),
+             annotation_text="assumed", annotation_position="top right",
+             annotation_font=dict(size=10, color=SIGNAL))
+ui.style(tf, 340, showlegend=False,
+         xaxis=dict(title="lab surfactants' tolerance C_crit, mg/mL (log)", type="log"),
+         yaxis=dict(title="protection G, %"))
+st.plotly_chart(tf, width="stretch", key="ctl_tol", config={"displayModeBar": False})
+
+g_at = lambda v: dm.optimal_dose(
+    env, benchmark_params(choice, NOMINAL.with_values(C_crit=v)), ("X", "L"))[1] * 100
+g_rl, g_sf = g_at(0.1652), g_at(0.0804)
+if g_rl < ctl_line:
+    ui.flag(
+        f"<b>If our surfactants are as toxic as rhamnolipid, the lab pair drops to "
+        f"{g_rl:.1f}% and loses to the {B.name.lower()} ({ctl_line:.1f}%).</b> "
+        "The headline lead on the film side depends on an assumption nobody has "
+        "tested. An MTT series on HaCaT cells would turn it into a number."
+    )
+else:
+    ui.note(
+        f"<b>Even at rhamnolipid's tolerance the lab pair holds {g_rl:.1f}%</b> "
+        f"against the {B.name.lower()}'s {ctl_line:.1f}%, and {g_sf:.1f}% at "
+        "surfactin's. The lead survives the harshest measured tolerance, because "
+        "the film saturates at a dose well below where the penalty starts."
     )
 
 st.divider()

@@ -140,8 +140,35 @@ def compound_label(k: str, p: Params | None = None) -> str:
 # cross-page state
 # ----------------------------------------------------------------------------
 
+# The chosen benchmark lives under its own plain key. A widget's value is
+# dropped by Streamlit the moment its page stops rendering it, so keeping the
+# choice in a widget key would reset it every time someone changed page.
+_BENCH = "_benchmark_choice"
+
+
 def benchmark_key() -> str:
-    return st.session_state.get("benchmark", dm.DEFAULT_BENCHMARK)
+    return st.session_state.get(_BENCH, dm.DEFAULT_BENCHMARK)
+
+
+def benchmark_picker(where: str, *, kind: str = "select", container=None,
+                     label: str = "Benchmark biosurfactant (S)", **kw) -> str:
+    """One picker for the S slot, usable on any page. `where` makes the widget
+    key unique per page; the choice itself is shared."""
+    c = container or st
+    keys = list(dm.BENCHMARKS)
+    wkey = f"bench_{where}"
+
+    def _sync():
+        st.session_state[_BENCH] = st.session_state[wkey]
+
+    widget = c.radio if kind == "radio" else c.selectbox
+    choice = widget(
+        label, keys, index=keys.index(benchmark_key()), key=wkey, on_change=_sync,
+        format_func=lambda k: f"{dm.BENCHMARKS[k].name}: {dm.BENCHMARKS[k].role}",
+        **kw,
+    )
+    st.session_state[_BENCH] = choice
+    return choice
 
 
 def benchmark() -> dm.Benchmark:

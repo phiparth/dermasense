@@ -43,7 +43,7 @@ EVIDENCE: Dict[str, str] = {
     # benchmark biosurfactant S, the control arm for X and L. Values are
     # swapped per benchmark by benchmark_params(); these tags are for the
     # default one, acidic sophorolipid.
-    "CMC_S": "B", "C_crit_S": "C", "strip_S": "C", "S_cap": "B",
+    "CMC_S": "B", "C_crit_S": "B", "strip_S": "C", "S_cap": "C",
 }
 
 # low / high band for the constants that carry the uncertainty
@@ -172,10 +172,10 @@ class Params:
     # already sold for skin, run through exactly the same S1a / S4 / S6 terms
     # as xylolipid and lyso-ornithine lipid, so a head-to-head is like for like.
     # Zero dose by default, so every spec number is untouched.
-    CMC_S: float = 0.09           # mg/mL, acidic sophorolipid, 1.3e-4 M x ~690 g/mol
-    C_crit_S: float = 1.00        # set equal to C_crit on purpose: like-for-like
-    strip_S: float = 0.25         # likewise equal to strip
-    S_cap: float = 0.50           # no keratinocyte / 3D-skin toxicity up to 0.5 mg/mL
+    CMC_S: float = 1.0            # mg/mL, acidic sophorolipid, measured
+    C_crit_S: float = 20.93       # mg/mL, its HaCaT LC50, measured
+    strip_S: float = 0.25         # set equal to strip on purpose: like-for-like
+    S_cap: float = 1.0            # same ceiling as hyaluronic acid
 
     # -- numerics --------------------------------------------------------------
     eps_guard: float = 1e-3
@@ -234,41 +234,93 @@ class Benchmark:
     sources: Tuple[str, ...] = ()
 
 
+# Constants for the S slot. CMC_S sets how little mass builds a film; C_crit_S
+# is where the surfactant starts hurting the tissue, read from a measured
+# keratinocyte half-effect concentration wherever one exists, so it feeds both
+# the stripping onset (S4) and the self-toxicity half point (S6) the same way
+# the lab surfactants' single C_crit does. S_cap is 1 mg/mL for every
+# benchmark: the same ceiling as hyaluronic acid, the largest dose anything in
+# the model is allowed, and inside the range the keratinocyte data cover.
 BENCHMARKS: Dict[str, Benchmark] = {
     "sophorolipid": Benchmark(
         key="sophorolipid",
         name="Acidic sophorolipid",
-        role="positive control",
-        CMC_S=0.09, C_crit_S=1.00, strip_S=0.25, S_cap=0.50,
-        evidence="CMC class B, cap class B, stripping class C (set equal to ours)",
-        note=("A glycolipid biosurfactant already sold as a leave-on skincare "
-              "ingredient. Unlike xylolipid and lyso-ornithine lipid it has "
-              "human skin data: no loss of keratinocyte or fibroblast viability "
-              "up to 0.5 mg/mL, and no damage to a 3D epidermis model where SLES "
-              "did damage it. That is exactly what a control needs to be: the "
-              "same mechanism, better evidence."),
+        role="mild, weak film",
+        CMC_S=1.0, C_crit_S=20.93, strip_S=0.25, S_cap=1.0,
+        evidence="CMC and HaCaT LC50 measured (class B); stripping slope class C",
+        note=("The cosmetic glycolipid. Gentlest of the lot on keratinocytes, "
+              "which are unharmed until roughly 21 mg/mL, but it needs about "
+              "1 mg/mL just to cover half the interface, so it is a weak film "
+              "former per milligram. Mild and inefficient."),
         sources=(
-            "CMC 1.3e-4 M, fluorescence probe (PubMed 23156775); ~50 mg/L elsewhere",
+            "CMC 1,000 mg/L and HaCaT LC50 20,930 mg/L, open-chain acid sophorolipid, "
+            "Biol Pharm Bull Rep 7(2) (J-STAGE)",
             "Purified acidic sophorolipids vs synthetic surfactants, 3D skin model, "
             "Fermentation 2023, 9(11), 985",
-            "Glycolipid biosurfactants on human keratinocytes (PMC9750927)",
-            "Lourith & Kanlayavattanakul 2009, Int J Cosmet Sci, glycolipids in cosmetics",
+        ),
+    ),
+    "rhamnolipid": Benchmark(
+        key="rhamnolipid",
+        name="Rhamnolipid",
+        role="potent, harsher",
+        CMC_S=0.038, C_crit_S=0.1652, strip_S=0.25, S_cap=1.0,
+        evidence="CMC and HaCaT LC50 measured (class B); stripping slope class C",
+        note=("The closest relative of xylolipid among established biosurfactants: "
+              "a glycolipid, an efficient film former, and, unlike ours, it has "
+              "been put on keratinocytes. It covers the interface at a fortieth "
+              "of the mass sophorolipid needs, and starts killing cells at "
+              "0.17 mg/mL. Efficient and not gentle."),
+        sources=(
+            "CMC 38 mg/L and HaCaT LC50 165.2 mg/L, same J-STAGE study",
+        ),
+    ),
+    "surfactin": Benchmark(
+        key="surfactin",
+        name="Surfactin",
+        role="most potent, harshest",
+        CMC_S=0.016, C_crit_S=0.0804, strip_S=0.25, S_cap=1.0,
+        evidence="CMC and HaCaT LC50 measured (class B); stripping slope class C",
+        note=("A lipopeptide, the nearest analogue to lyso-ornithine lipid: both "
+              "are amino-acid headgroups on a fatty chain. The best film former "
+              "per milligram here and the most toxic, with a keratinocyte LC50 of "
+              "0.08 mg/mL. It shows the trade-off that an interior optimum is made of."),
+        sources=(
+            "CMC 16 mg/L and HaCaT LC50 80.4 mg/L, same J-STAGE study",
+        ),
+    ),
+    "decylglucoside": Benchmark(
+        key="decylglucoside",
+        name="Decyl glucoside",
+        role="market-standard mild surfactant",
+        CMC_S=0.32, C_crit_S=20.0, strip_S=0.25, S_cap=1.0,
+        evidence="CMC class A-B (about 1 mM, 0.5-2 mM across sources); tolerance class C",
+        note=("The alkyl glucoside used across commercial leave-on and rinse-off "
+              "products, here as the thing a formulator would actually reach for. "
+              "Its tolerance is inferred from clinical patch tests (at most "
+              "slightly irritating at 2% active, so about 20 mg/mL), not from a "
+              "keratinocyte LC50, which is why it is class C."),
+        sources=(
+            "CMC about 1.0 mM (1.00-1.06 mM measured; 0.5-2 mM across sources) x 320 g/mol",
+            "CIR Expert Panel safety assessment of alkyl glucosides (J Am Coll Toxicol / "
+            "Int J Toxicol 2013)",
         ),
     ),
     "sds": Benchmark(
         key="sds",
         name="Sodium dodecyl sulfate",
         role="negative control",
-        CMC_S=2.36, C_crit_S=2.50, strip_S=0.50, S_cap=10.0,
-        evidence="CMC class A (8.2 mM), threshold and stripping class C",
-        note=("The reference irritant of skin science, and the surfactant every "
-              "patch test uses to break a barrier on purpose. It forms a film "
-              "like any surfactant, but needs ~25x more mass than sophorolipid "
-              "to do it and strips lipids at concentrations it is sold at. It "
-              "shows what the S4 and S6 penalties look like when they bite."),
+        CMC_S=2.36, C_crit_S=0.10, strip_S=0.50, S_cap=1.0,
+        evidence="CMC class A (8.2 mM); toxicity onset class C",
+        note=("The OECD and ICCVAM reference cytotoxic substance for skin tests. "
+              "It is a poor film former (CMC 2.4 mg/mL) and it hurts "
+              "keratinocytes well below that, so it is on the list to show what "
+              "a surfactant with no window at all looks like. Toxicity onset is "
+              "placed at 0.1 mg/mL, a rounded value consistent with 25 ug/mL "
+              "being described as sub-toxic over 48 h; nobody has fitted it here."),
         sources=(
-            "CMC 8.2 mM in water (~2.36 mg/mL), standard value",
-            "0.25-1% SLS occlusive patch = standard barrier-disruption model",
+            "CMC 8.2 mM in water (about 2.36 mg/mL)",
+            "SDS as the OECD / ICCVAM reference cytotoxic control, HaCaT, "
+            "PubMed 28726210; 25 ug/mL sub-toxic over 48 h",
         ),
     ),
 }
@@ -834,6 +886,172 @@ def control_equivalent_dose(p: Params = NOMINAL, X: float | None = None,
     }
 
 
+# ----------------------------------------------------------------------------
+# the market: what commercial products actually carry
+# ----------------------------------------------------------------------------
+
+# Cosmetic labels give % w/w. The model's doses are mg/mL. At a density of about
+# 1 g/mL, 1 % w/w is 10 mg/mL, so a serum with 1 % hyaluronic acid is TEN TIMES
+# the model's hyaluronic acid ceiling of 1 mg/mL.
+PCT_TO_MG_PER_ML = 10.0
+
+
+@dataclass(frozen=True)
+class MarketRange:
+    key: str
+    label: str
+    low: float                 # % w/w
+    typical: float             # % w/w, geometric mean of low and high: our choice
+    high: float                # % w/w
+    basis: str
+    sources: Tuple[str, ...] = ()
+
+    def mg_per_ml(self, level: str) -> float:
+        return getattr(self, level) * PCT_TO_MG_PER_ML
+
+
+def _geo(lo: float, hi: float) -> float:
+    return float(np.sqrt(lo * hi))
+
+
+# Ranges, not point values: the literature gives how low and how high products
+# go, and where "typical" sits inside that is a judgement. It is taken here as
+# the geometric mean of the ends, said out loud, rather than quoted as if a
+# source had stated it.
+MARKET_RANGES: Dict[str, MarketRange] = {
+    "H": MarketRange(
+        key="H", label="Hyaluronic acid / sodium hyaluronate",
+        low=0.1, typical=_geo(0.1, 2.0), high=2.0,
+        basis=("Hydrates from about 0.1 %, and usual skin-care levels reach about "
+               "2 %. The CIR panel's 2021 survey put hyaluronic acid itself at "
+               "0.000002-0.83 % and sodium hyaluronate at up to 7.5 %."),
+        sources=("Paula's Choice, Hyaluronic Acid Skin Care Myths (0.1-2 %)",
+                 "Cosmetic Ingredient Review, hyaluronic acid use survey, 2021"),
+    ),
+    "S": MarketRange(
+        key="S", label="Surfactant / biosurfactant in a leave-on product",
+        low=0.05, typical=_geo(0.05, 5.0), high=5.0,
+        basis=("Sophorolipid cosmetic compositions are claimed at 0.01-30 %, "
+               "preferably 0.05-5 %. Leave-on surfactant totals run 0.1-40 %, "
+               "preferably 1-20 %, optimally 1-5 %. The range used here is the "
+               "overlap of the two preferred bands."),
+        sources=("EP0820273B1, use of sophorolipids in cosmetic compositions",
+                 "Leave-on surfactant concentration, cosmetic composition patents"),
+    ),
+}
+
+# Antioxidants the model cannot score. It has one scavenging channel with a rate
+# constant measured in a DPPH assay for hyaluronic acid and xylolipid, and no
+# such measurement for these. Listed so the scale gap is on the page, not hidden.
+UNSCORED_ANTIOXIDANTS: List[Dict[str, object]] = [
+    {"name": "L-ascorbic acid (vitamin C)", "low": 10.0, "high": 20.0,
+     "example": "SkinCeuticals C E Ferulic, 15 %; 10 % and 20 % serums are common"},
+    {"name": "alpha-tocopherol (vitamin E)", "low": 0.5, "high": 1.0,
+     "example": "SkinCeuticals C E Ferulic, 1 %"},
+    {"name": "Ferulic acid", "low": 0.5, "high": 0.5,
+     "example": "SkinCeuticals C E Ferulic, 0.5 %"},
+]
+
+
+def domain_factor(d: Dose, p: Params = NOMINAL) -> float:
+    """How far past the validity domain the worst coordinate is. 1 or less means
+    inside it. The model's own curves are only supported there."""
+    f = 0.0
+    for k in ALL_KEYS:
+        v = getattr(d, k)
+        c = cap_of(k, p)
+        if c > 0:
+            f = max(f, v / c)
+    return f
+
+
+def domain_label(factor: float) -> str:
+    if factor <= 1.0 + 1e-9:
+        return "inside the validity domain"
+    if factor <= 10.0:
+        return "extrapolated"
+    return "outside the model"
+
+
+def clipped(d: Dose, p: Params = NOMINAL) -> Dose:
+    """The dose the evidence supports: every coordinate held at its cap."""
+    return Dose(**{k: min(getattr(d, k), cap_of(k, p)) for k in ALL_KEYS})
+
+
+def market_scenarios(e: Environment, p: Params = NOMINAL) -> List[Dict[str, object]]:
+    """Score a market-level antioxidant (hyaluronic acid) with a market-level
+    surfactant at the low, typical and high ends of the published ranges.
+
+    Each row carries both the raw score and the score with every dose clipped to
+    its cap. The raw one is only meaningful while the dose is close to the
+    domain; beyond about 10x the linear stripping term runs away and the number
+    is the model being used where it has no evidence, so it is labelled rather
+    than hidden.
+    """
+    rows = []
+    for level in ("low", "typical", "high"):
+        d = Dose(H=MARKET_RANGES["H"].mg_per_ml(level),
+                 S=MARKET_RANGES["S"].mg_per_ml(level))
+        r = evaluate(e, d, p)
+        c = clipped(d, p)
+        rc = evaluate(e, c, p)
+        fac = domain_factor(d, p)
+        rows.append({
+            "level": level, "dose": d, "H": d.H, "S": d.S,
+            "pct_H": d.H / PCT_TO_MG_PER_ML, "pct_S": d.S / PCT_TO_MG_PER_ML,
+            "mass": d.H + d.S,
+            "ratio_antiox_to_surf": d.H / d.S if d.S > 0 else float("nan"),
+            "factor": fac, "domain": domain_label(fac),
+            "G_raw": r["G"], "RSD_raw": r["RSD"], "Psi": r["Psi"], "Omega": r["Omega"],
+            "TEWL_raw": r["TEWL_improvement"],
+            "G_clipped": rc["G"], "RSD_clipped": rc["RSD"],
+            "TEWL_clipped": rc["TEWL_improvement"],
+        })
+    return rows
+
+
+def formulation_ratio(d: Dose) -> Dict[str, float]:
+    """Antioxidant mass over surfactant mass. Antioxidants are P and H, film
+    formers are X, L and S."""
+    ao = d.P + d.H
+    sf = d.X + d.L + d.S
+    return {"antioxidant": ao, "surfactant": sf,
+            "ratio": ao / sf if sf > 0 else float("inf"),
+            "total": ao + sf}
+
+
+def ratio_sweep(e: Environment, p: Params, shape: Dose, masses) -> np.ndarray:
+    """G as a fixed formulation is scaled from a trace to a lot. shape sets the
+    proportions, masses is the total applied mass, mg/mL. Doses beyond the caps
+    are extrapolation; the caller draws that boundary."""
+    shape_v = shape.as_array(ALL_KEYS)
+    tot = shape_v.sum()
+    out = np.empty(len(masses))
+    for i, m in enumerate(masses):
+        out[i] = protection(e, Dose.from_array(shape_v / tot * m, ALL_KEYS), p)
+    return out
+
+
+LAB_FILM_SHAPE = (CAPS["X"], CAPS["L"])
+
+
+def grid_G(e: Environment, p: Params, former: str, h_axis, f_axis) -> np.ndarray:
+    """G on a grid of hyaluronic acid (rows) against one film former (columns).
+    former is "S" for the benchmark surfactant or "XL" for the lab pair held at
+    its ratio and scaled. Pulcherrimin is off, so the grid isolates the two
+    things a commercial product actually carries."""
+    out = np.empty((len(h_axis), len(f_axis)))
+    x_share = LAB_FILM_SHAPE[0] / sum(LAB_FILM_SHAPE)
+    for i, h in enumerate(h_axis):
+        for j, f in enumerate(f_axis):
+            if former == "S":
+                d = Dose(H=float(h), S=float(f))
+            else:
+                d = Dose(H=float(h), X=float(f) * x_share, L=float(f) * (1 - x_share))
+            out[i, j] = protection(e, d, p)
+    return out
+
+
 __all__ = [
     "Params", "NOMINAL", "Environment", "Dose", "ZERO_DOSE", "CAPS",
     "CAP_REASON", "DOSE_ORDER", "COMPOUND_NAME", "EVIDENCE", "BANDS",
@@ -847,4 +1065,7 @@ __all__ = [
     "DEFAULT_BENCHMARK", "benchmark_params", "cap_of", "CONTROL_ARMS",
     "control_comparison", "half_coverage_dose", "coverage_alone",
     "control_equivalent_dose",
+    "PCT_TO_MG_PER_ML", "MarketRange", "MARKET_RANGES", "UNSCORED_ANTIOXIDANTS",
+    "domain_factor", "domain_label", "clipped", "market_scenarios",
+    "formulation_ratio", "ratio_sweep", "LAB_FILM_SHAPE", "grid_G",
 ]

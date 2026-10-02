@@ -233,15 +233,47 @@ def test_coverage_equivalence_is_exact():
     assert abs(got - eq["theta_lab"]) < 1e-9
 
 
-def test_sds_is_a_worse_film_former_than_the_cosmetic_control():
-    """The negative control has to actually behave like one: much more mass for
-    the same coverage, and a stripping penalty the other never triggers."""
-    soph = dm.benchmark_params("sophorolipid")
-    sds = dm.benchmark_params("sds")
-    assert sds.CMC_S > 10 * soph.CMC_S
-    g_soph = optimal_dose(REF, soph, ("S",))[1]
-    g_sds = optimal_dose(REF, sds, ("S",))[1]
-    assert g_sds < g_soph
+def test_sds_has_no_window_between_film_and_harm():
+    """The negative control has to actually behave like one: the poorest film
+    former of the lot, among the two least tolerated (surfactin, a lipopeptide
+    with a keratinocyte LC50 of 0.08 mg/mL, is as toxic), and so last on
+    protection."""
+    sds = dm.BENCHMARKS["sds"]
+    others = [b for k, b in dm.BENCHMARKS.items() if k != "sds"]
+    assert all(sds.CMC_S > b.CMC_S for b in others)
+    tolerance_rank = sorted(dm.BENCHMARKS.values(), key=lambda b: b.C_crit_S)
+    assert sds in tolerance_rank[:2]
+    g = {k: optimal_dose(REF, dm.benchmark_params(k), ("S",))[1]
+         for k in dm.BENCHMARKS}
+    assert g["sds"] == min(g.values())
+
+
+def test_potent_biosurfactants_trade_efficiency_for_toxicity():
+    """Rhamnolipid and surfactin form a film at a fraction of the mass and kill
+    keratinocytes at a fraction of the dose, so they are the benchmarks with a
+    genuine interior optimum. Sophorolipid is gentle and weak, so it just runs
+    to the cap. That trade is what an interior optimum is made of."""
+    b = dm.BENCHMARKS
+    assert b["surfactin"].CMC_S < b["rhamnolipid"].CMC_S < b["sophorolipid"].CMC_S
+    assert b["surfactin"].C_crit_S < b["rhamnolipid"].C_crit_S < b["sophorolipid"].C_crit_S
+    for k in ("rhamnolipid", "surfactin"):
+        p = dm.benchmark_params(k)
+        d, _ = optimal_dose(REF, p, ("S",))
+        assert d.S < 0.5 * p.S_cap, k
+    p = dm.benchmark_params("sophorolipid")
+    assert optimal_dose(REF, p, ("S",))[0].S >= p.S_cap - 1e-6
+
+
+def test_the_control_adds_almost_nothing_once_the_lab_film_is_saturated():
+    """With X and L at their caps the film is ~96% covered, so a third film
+    former has little left to buy. Stated as the size of the gain rather than as
+    where the optimiser lands, because on a plateau the landing point is
+    arbitrary."""
+    for k in dm.BENCHMARKS:
+        p = dm.benchmark_params(k)
+        g_spec = optimal_dose(REF, p, DOSE_ORDER)[1]
+        g_all = optimal_dose(REF, p, dm.ALL_KEYS)[1]
+        assert g_all - g_spec < 0.002, k
 
 
 def test_every_arm_is_scored_on_its_own_best_dose():
@@ -267,13 +299,73 @@ def test_adding_arms_never_lowers_the_best_achievable_protection():
     assert g_all >= g_spec - 1e-6
 
 
-def test_optimiser_declines_the_control_when_the_film_is_already_saturated():
-    """The honest reading of the 'everything' arm: with X and L at their caps
-    the control has almost nothing left to buy, so the optimiser barely uses
-    it. That is sub-additivity, not the control being useless."""
+# ------------------------------------------------------------ the market
+
+def test_percent_to_model_units():
+    """1 % w/w is 10 mg/mL, so a 1 % hyaluronic acid serum is ten times the
+    model's own hyaluronic acid ceiling. That one conversion is the headline of
+    the market comparison, so it is pinned."""
+    assert dm.PCT_TO_MG_PER_ML == 10.0
+    assert abs(dm.MARKET_RANGES["H"].mg_per_ml("high") - 20.0) < 1e-12
+    assert dm.MARKET_RANGES["H"].mg_per_ml("low") == CAPS["H"]
+
+
+def test_typical_is_inside_the_published_range():
+    for r in dm.MARKET_RANGES.values():
+        assert r.low < r.typical < r.high
+
+
+def test_domain_labels_and_clipping():
     p = dm.benchmark_params("sophorolipid")
-    d, _ = optimal_dose(REF, p, dm.ALL_KEYS)
-    assert d.S < 0.1 * p.S_cap
+    inside = Dose(H=0.5, S=0.5)
+    assert dm.domain_label(dm.domain_factor(inside, p)) == "inside the validity domain"
+    big = Dose(H=20.0, S=50.0)
+    assert dm.domain_label(dm.domain_factor(big, p)) == "outside the model"
+    c = dm.clipped(big, p)
+    assert c.H == CAPS["H"] and c.S == p.S_cap
+
+
+def test_market_low_end_is_inside_the_model_and_high_end_is_not():
+    rows = dm.market_scenarios(REF, dm.benchmark_params("sophorolipid"))
+    by = {r["level"]: r for r in rows}
+    assert by["low"]["domain"] == "inside the validity domain"
+    assert by["high"]["domain"] == "outside the model"
+    # inside the domain there is nothing to clip
+    assert abs(by["low"]["G_raw"] - by["low"]["G_clipped"]) < 1e-12
+
+
+def test_clipped_market_score_never_exceeds_the_lab_optimum():
+    """Capped at the evidence, a market formulation cannot beat the optimum the
+    optimiser finds inside the same caps: that is what optimal means."""
+    p = dm.benchmark_params("sophorolipid")
+    best = optimal_dose(REF, p, dm.ALL_KEYS)[1]
+    for r in dm.market_scenarios(REF, p):
+        assert r["G_clipped"] <= best + 1e-9
+
+
+def test_formulation_ratio_counts_the_right_things():
+    d = Dose(P=0.1, X=0.2, L=0.01, H=1.0, S=0.3)
+    r = dm.formulation_ratio(d)
+    assert abs(r["antioxidant"] - 1.1) < 1e-12
+    assert abs(r["surfactant"] - 0.51) < 1e-12
+    assert abs(r["total"] - 1.61) < 1e-12
+
+
+def test_ratio_sweep_at_the_optimum_mass_reproduces_the_optimum():
+    d, g = optimal_dose(REF)
+    tot = sum(d.as_array(dm.ALL_KEYS))
+    got = dm.ratio_sweep(REF, NOMINAL, d, [tot])[0]
+    assert abs(got - g) < 1e-9
+
+
+def test_grid_matches_direct_evaluation():
+    p = dm.benchmark_params("sophorolipid")
+    g = dm.grid_G(REF, p, "S", np.array([1.0]), np.array([0.5]))[0, 0]
+    assert abs(g - protection(REF, Dose(H=1.0, S=0.5), p)) < 1e-12
+    x_share = dm.LAB_FILM_SHAPE[0] / sum(dm.LAB_FILM_SHAPE)
+    g2 = dm.grid_G(REF, p, "XL", np.array([1.0]), np.array([0.31]))[0, 0]
+    d = Dose(H=1.0, X=0.31 * x_share, L=0.31 * (1 - x_share))
+    assert abs(g2 - protection(REF, d, p)) < 1e-12
 
 
 if __name__ == "__main__":
