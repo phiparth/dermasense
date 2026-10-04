@@ -195,7 +195,10 @@ e = Environment(C_PM=float(pm), C_O3=float(o3), I_UV=float(uv), PT=int(pt),
 params = dm.benchmark_params(bench)
 B = dm.BENCHMARKS[bench]
 
-dose_k, G = ui.c_optimal(ui.ekey(e), ui.pkey(params), dm.DOSE_ORDER)
+# Optimised over all five, so both controls appear in the dose table: the
+# antioxidant control (hyaluronic acid) and the film control side by side with
+# our own three.
+dose_k, G = ui.c_optimal(ui.ekey(e), ui.pkey(params), dm.ALL_KEYS)
 dose = Dose(*dose_k)
 res = ui.c_evaluate(ui.ekey(e), dose_k, ui.pkey(params))
 
@@ -217,17 +220,22 @@ with right:
                         key="home_gauge", config={"displayModeBar": False})
     with g2:
         bar = go.Figure()
-        keys = dm.DOSE_ORDER
+        keys = dm.ALL_KEYS
         bar.add_bar(
             x=[getattr(dose, k) / dm.cap_of(k, params) * 100 for k in keys],
             y=[ui.compound_label(k) for k in keys],
             orientation="h",
-            marker_color=[COLOR[k] for k in keys],
+            marker=dict(
+                color=[COLOR[k] for k in keys],
+                # the two controls are hatched, our three are solid
+                pattern=dict(shape=["/" if k in dm.CONTROL_KEYS else "" for k in keys],
+                             fgcolor="white", size=5),
+            ),
             text=[f"{getattr(dose, k):.3f} mg/mL" for k in keys],
             textposition="auto",
             hovertemplate="%{y}<br>%{x:.0f}% of its cap<extra></extra>",
         )
-        ui.style(bar, 250, showlegend=False,
+        ui.style(bar, 300, showlegend=False,
                  xaxis=dict(title="% of the evidence cap", range=[0, 118]),
                  margin=dict(l=0, r=0, t=26, b=0))
         st.plotly_chart(bar, width="stretch", key="home_dose",
@@ -265,12 +273,14 @@ with right:
     )
 
 ui.note(
-    f"<b>Why the control surfactant is not in the dose table above.</b> The "
-    f"recommendation is our own formulation, and adding {B.name.lower()} on top of "
-    "it buys almost nothing: xylolipid and lyso-ornithine lipid have already "
-    "covered about 96% of the interface, so a third film former has nothing left "
-    "to cover. The comparison that means something is the one on the left, where "
-    "each arm is built from scratch."
+    f"<b>Both controls are in the dose table: hyaluronic acid on the antioxidant "
+    f"side, {B.name.lower()} on the film side.</b> Read the control surfactant's "
+    "number loosely, though. Our two film formers already cover about 96% of the "
+    "interface, so a third one changes protection by less than a hundredth of a "
+    "point anywhere between zero and its cap. The optimiser has to return "
+    "something, and on a plateau that something is close to arbitrary. The arms "
+    "chart on the left is the comparison that carries weight, because there each "
+    "arm is built from scratch."
 )
 
 ui.flag(
