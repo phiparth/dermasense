@@ -1,7 +1,7 @@
 # Touch this file to force Streamlit Cloud to rebuild and restart.
 # A push alone can redeploy new page files into a process still holding the
 # old ui / dermasense_model modules, which then fails on anything added in
-# the same push. Bumped: citations page and shared background.
+# the same push. Bumped: cleaner citations page.
 streamlit>=1.50
 numpy>=1.26
 scipy>=1.11
