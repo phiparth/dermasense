@@ -40,7 +40,19 @@ CHANNEL_COLOR = {"PM": "#5b5f66", "O3": SIGNAL, "UV": "#7b4fc9"}
 
 CSS = f"""
 <style>
-  .stApp {{ background: {PAPER}; }}
+  /* The cover's ground, shared by every page: two soft washes over a warm
+     vertical gradient, pinned so a long page scrolls against a still
+     background instead of stretching it. */
+  .stApp {{
+    background:
+      radial-gradient(1100px 560px at 78% 8%, rgba(244, 205, 150, .55), rgba(244, 205, 150, 0) 60%),
+      radial-gradient(900px 500px at 8% 30%, rgba(190, 214, 190, .45), rgba(190, 214, 190, 0) 62%),
+      linear-gradient(180deg, #fbf7ef 0%, #f3ecdd 58%, #e8e0cb 100%);
+    background-attachment: fixed;
+  }}
+  /* the chrome sits on the same ground rather than on a flat panel */
+  [data-testid="stHeader"] {{ background: transparent; }}
+  section[data-testid="stSidebar"] > div {{ background: rgba(255, 253, 247, .72); }}
   html, body, [class*="css"] {{ color: {INK}; }}
   h1, h2, h3 {{ letter-spacing: -0.01em; }}
   .block-container {{ padding-top: 2.2rem; }}

@@ -20,12 +20,9 @@ COVER_CSS = """
 /* hide the app chrome, on this page only: the styles vanish with the page */
 [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stSidebar"],
 [data-testid="stSidebarCollapsedControl"], footer { display: none !important; }
-.stApp {
-  background:
-    radial-gradient(1100px 560px at 78% 8%, rgba(244, 205, 150, .55), rgba(244, 205, 150, 0) 60%),
-    radial-gradient(900px 500px at 8% 30%, rgba(190, 214, 190, .45), rgba(190, 214, 190, 0) 62%),
-    linear-gradient(180deg, #fbf7ef 0%, #f3ecdd 58%, #e8e0cb 100%);
-}
+/* the ground lives in ui.py now and is shared with every other page, so the
+   cover sets nothing of its own beyond letting it scroll with the art */
+.stApp { background-attachment: scroll; }
 .block-container { max-width: 100% !important; padding: 0 !important; }
 
 .cv { position: relative; min-height: 100vh; overflow: hidden;

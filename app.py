@@ -28,6 +28,7 @@ pages = [
     st.Page("views/controls.py", title="Lab vs controls", icon=":material/compare_arrows:"),
     st.Page("views/market.py", title="Lab vs market", icon=":material/storefront:"),
     st.Page("views/model.py", title="How the model works", icon=":material/functions:"),
+    st.Page("views/citations.py", title="Citations", icon=":material/menu_book:"),
 ]
 
 st.navigation(pages, position="top").run()
