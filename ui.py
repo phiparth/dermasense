@@ -36,7 +36,83 @@ COLOR = {
     "H": "#b08a3e",
     "S": "#7a5c99",
 }
-CHANNEL_COLOR = {"PM": "#5b5f66", "O3": SIGNAL, "UV": "#7b4fc9"}
+# Pollution channels are drawn in neutrals on purpose. Ozone used to share the
+# xylolipid teal and UV sat next to the control surfactant's violet, so a flow
+# chart read as if a pollutant were a compound.
+CHANNEL_COLOR = {"PM": "#4b4f55", "O3": "#7f8c94", "UV": "#a89f8c"}
+
+# One rule for every chart, card and diagram on the site:
+#   lab compounds (P, X, L)   solid fill in their own colour
+#   controls (H, S)           hatched in bars, outlined in chips and cards
+# and mixtures use the group colours below, never a compound's own colour.
+LAB_GROUP = "#2f6f4f"
+CONTROL_GROUP = "#8e7cab"
+ALL_GROUP = INK
+
+# Where the letters come from. Each is the initial the model's equations use.
+ABBREV = {
+    "P": ("Pulcherrimin", "lab"),
+    "X": ("Xylolipid", "lab"),
+    "L": ("Lyso-ornithine Lipid", "lab"),
+    "H": ("Hyaluronic acid", "control"),
+    "S": ("benchmark Surfactant", "control"),
+}
+
+
+def is_control(k: str) -> bool:
+    return k in dm.CONTROL_KEYS
+
+
+def bar_marker(keys, colors=None) -> dict:
+    """Plotly bar marker: compound colours, controls hatched."""
+    return dict(
+        color=colors or [COLOR[k] for k in keys],
+        pattern=dict(shape=["/" if is_control(k) else "" for k in keys],
+                     fgcolor="white", size=5),
+    )
+
+
+def chip(k: str, size: str = "0.78rem") -> str:
+    """A compound's letter as a chip: filled for lab, outlined for a control."""
+    c = COLOR[k]
+    if is_control(k):
+        style = (f"color:{c};background:transparent;border:1.5px dashed {c};")
+    else:
+        style = f"color:#ffffff;background:{c};border:1.5px solid {c};"
+    return (f"<span title='{ABBREV[k][0]}' style='{style}display:inline-block;"
+            f"min-width:1.55em;text-align:center;border-radius:6px;font-weight:700;"
+            f"font-size:{size};line-height:1.45;padding:0 .3em;margin-right:.25em;"
+            f"font-family:ui-monospace,Consolas,monospace'>{k}</span>")
+
+
+def chips(keys) -> str:
+    return "".join(chip(k) for k in keys)
+
+
+def legend_html(compact: bool = False) -> str:
+    """Defines the letters once, in the same visual language as every chart."""
+    items = []
+    for k, (name, kind) in ABBREV.items():
+        # bold the letter the abbreviation is taken from
+        if k == "L":
+            label = "Lyso-ornithine <b><u>L</u></b>ipid"
+        elif k == "S":
+            label = "benchmark <b><u>S</u></b>urfactant"
+        else:
+            label = f"<b><u>{name[0]}</u></b>{name[1:]}"
+        items.append(f"<span style='white-space:nowrap;margin-right:1.1rem'>"
+                     f"{chip(k)}{label}</span>")
+    rule = ("" if compact else
+            f"<div style='font-size:.78rem;color:{MUTED};margin-top:.45rem'>"
+            "Each letter is the initial the model's equations use for that compound. "
+            "Filled = our lab's compounds. Dashed outline = controls from the "
+            "literature. Hatched bars in charts mean the same thing.</div>")
+    return (f"<div class='card' style='padding:.75rem 1rem'>"
+            f"<div style='line-height:2'>{''.join(items)}</div>{rule}</div>")
+
+
+def legend() -> None:
+    st.markdown(legend_html(), unsafe_allow_html=True)
 
 CSS = f"""
 <style>
@@ -315,10 +391,44 @@ def gauge_figure(G: float, height: int = 250) -> go.Figure:
     return fig
 
 
-def sankey_figure(res: dict, p: Params, height: int = 420) -> go.Figure:
+# The right-hand labels of the flow are the same words as the rows of the stage
+# table next to it, so the two can be read across.
+FLOW_STAGES = [
+    ("S1a", "Particles stopped by the film"),
+    ("S1b", "UV screened"),
+    ("S2", "Iron chelated"),
+    ("S3", "Radicals scavenged by applied compounds"),
+    ("S3", "Radicals scavenged by the skin's own antioxidants"),
+    ("", "Residual oxidative damage"),
+]
+FLOW_MIDDLE = "Radicals formed in skin"
+
+
+def _dominant(shares: dict) -> list:
+    """Compounds ordered by their share of a stage, largest first, zeros dropped."""
+    return [k for k, v in sorted(shares.items(), key=lambda kv: -kv[1]) if v > 1e-12]
+
+
+def flow_actors(res: dict, d: Dose, p: Params) -> dict:
+    """Which compounds do each stage on this day, largest contributor first.
+    The flow colours each stage by its largest contributor, so a stage carried
+    mostly by lyso-ornithine lipid is blue, not teal."""
+    film = _dominant({"L": res["occ_L"], "X": res["occ_X"], "S": res["occ_S"]})
+    scav = _dominant({"X": p.k_X * d.X, "H": p.k_H * d.H})
+    return {
+        "Particles stopped by the film": film,
+        "UV screened": ["P"] if d.P > 0 else [],
+        "Iron chelated": ["P"] if d.P > 0 else [],
+        "Radicals scavenged by applied compounds": scav,
+    }
+
+
+def sankey_figure(res: dict, p: Params, height: int = 420, d: Dose | None = None
+                  ) -> go.Figure:
     """Where the oxidative load goes, in R_gen units (reference day = 1)."""
+    if d is None:
+        d = Dose()
     w = {"PM": p.w_PM, "O3": p.w_O3, "UV": p.w_UV}
-    raw = {"PM": w["PM"] * res["p"], "O3": w["O3"] * res["z"], "UV": w["UV"] * res["u"]}
     film_pm = w["PM"] * (res["p"] - res["p_t"])
     film_o3 = w["O3"] * (res["z"] - res["z_t"])
     screen_uv = w["UV"] * (res["u"] - res["u_t"])
@@ -336,17 +446,35 @@ def sankey_figure(res: dict, p: Params, height: int = 420) -> go.Figure:
     appl = removed - endo
     resid = total_reach * surv
 
-    nodes = ["Particulates", "Ozone", "UV",
-             "Stopped by the film", "Screened by pulcherrimin", "Iron chelated",
-             "Radicals formed in skin",
-             "Skin's own antioxidants", "Applied scavengers", "Residual oxidative damage"]
-    ncol = [CHANNEL_COLOR["PM"], CHANNEL_COLOR["O3"], CHANNEL_COLOR["UV"],
-            COLOR["X"], COLOR["P"], "#8a3324", "#c98a3c",
-            "#6c8c5a", COLOR["H"], RUST]
+    actors = flow_actors(res, d, p)
+
+    def stage_label(code, text):
+        who = actors.get(text)
+        tail = f"  ({', '.join(who)})" if who else ""
+        return f"{code} · {text}{tail}" if code else text
+
+    def stage_color(text):
+        if text in actors:
+            who = actors[text]
+            return COLOR[who[0]] if who else "#c9c2b4"
+        if "skin's own" in text:
+            return "#6c8c5a"
+        return "#3d3a36"    # residual damage: dark, never a compound's colour
+
+    nodes = (["Particulates", "Ozone", "UV"]
+             + [stage_label(c, t) for c, t in FLOW_STAGES[:3]]
+             + [FLOW_MIDDLE]
+             + [stage_label(c, t) for c, t in FLOW_STAGES[3:]])
+    ncol = ([CHANNEL_COLOR["PM"], CHANNEL_COLOR["O3"], CHANNEL_COLOR["UV"]]
+            + [stage_color(t) for _, t in FLOW_STAGES[:3]]
+            + ["#c9b48c"]
+            + [stage_color(t) for _, t in FLOW_STAGES[3:]])
+    # 0 PM, 1 O3, 2 UV, 3 film, 4 UV screen, 5 iron, 6 middle,
+    # 7 applied, 8 skin's own, 9 residual
     links = [
         (0, 3, film_pm), (1, 3, film_o3), (2, 4, screen_uv), (0, 5, chel),
         (0, 6, reach["PM"]), (1, 6, reach["O3"]), (2, 6, reach["UV"]),
-        (6, 7, endo), (6, 8, appl), (6, 9, resid),
+        (6, 7, appl), (6, 8, endo), (6, 9, resid),
     ]
     links = [l for l in links if l[2] > 1e-6]
 
@@ -360,11 +488,53 @@ def sankey_figure(res: dict, p: Params, height: int = 420) -> go.Figure:
                   line=dict(color="white", width=0.5)),
         link=dict(source=[l[0] for l in links], target=[l[1] for l in links],
                   value=[l[2] for l in links],
-                  color=[rgba(ncol[l[0]]) for l in links],
+                  # a link takes the colour of where it ends, so each compound's
+                  # stage shows in its own colour all the way back to the source
+                  color=[rgba(ncol[l[1]]) for l in links],
                   hovertemplate="%{value:.3f} R_gen units<extra></extra>"),
     ))
     style(fig, height, margin=dict(l=0, r=0, t=10, b=10))
     return fig
+
+
+def stage_table_html(res: dict, d: Dose, p: Params) -> str:
+    """The stage table that sits beside the flow. Its first rows are the flow's
+    right-hand labels, word for word; the stages that act on the barrier and on
+    dose rather than on radicals follow under a divider."""
+    actors = flow_actors(res, d, p)
+    rows = []
+    for code, text in FLOW_STAGES:
+        who = actors.get(text)
+        if who is not None:
+            who_html = chips(who) if who else f"<span style='color:{MUTED}'>none today</span>"
+        elif "skin's own" in text:
+            who_html = f"<span style='color:{MUTED}'>the skin itself</span>"
+        else:
+            who_html = f"<span style='color:{MUTED}'>what is left</span>"
+        rows.append(f"<tr><td class='st-code'>{code}</td><td>{text}</td><td>{who_html}</td></tr>")
+    rows.append("<tr><td colspan='3' class='st-div'>Not in the flow: these act on the "
+                "barrier and on the dose, not on radicals</td></tr>")
+    rest = [
+        ("S4", "Water held in, or stripped out", ["H", "X", "L", "S"]),
+        ("S5", "Delay between sensing and secreting", ["P", "X", "H"]),
+        ("S6", "Dose harming the skin itself", ["P", "X", "L", "S"]),
+    ]
+    for code, text, keys in rest:
+        rows.append(f"<tr><td class='st-code'>{code}</td><td>{text}</td><td>{chips(keys)}</td></tr>")
+    return (
+        "<style>.stg{width:100%;border-collapse:collapse;font-size:.88rem;"
+        "background:#fff;border:1px solid #e3ded4;border-radius:10px;overflow:hidden}"
+        ".stg th{text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;"
+        f"color:{MUTED};font-weight:600;padding:.5rem .7rem;border-bottom:1px solid #e3ded4}}"
+        ".stg td{padding:.5rem .7rem;border-bottom:1px solid #efebe3;vertical-align:middle}"
+        ".stg tr:last-child td{border-bottom:0}"
+        ".stg .st-code{font-family:ui-monospace,Consolas,monospace;font-weight:600;"
+        f"color:{MUTED};white-space:nowrap}}"
+        f".stg .st-div{{font-size:.72rem;color:{MUTED};background:#faf8f3;"
+        "text-transform:uppercase;letter-spacing:.06em}</style>"
+        "<table class='stg'><thead><tr><th>Stage</th><th>What happens</th>"
+        "<th>Compounds</th></tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
+    )
 
 
 # ----------------------------------------------------------------------------

@@ -23,6 +23,8 @@ st.markdown(
     "code.</span>",
     unsafe_allow_html=True,
 )
+st.write("")
+ui.legend()
 
 env = ui.shared_env()
 params = dm.benchmark_params(ui.benchmark_key())
@@ -57,8 +59,8 @@ The same shape carries **interfacial coverage** (S1a), **iron chelation** (S2),
 with c2:
     hf = go.Figure()
     c = np.linspace(0, 4, 300)
-    for K, n, lab, col in [(0.5, 1, "K = 0.5, n = 1", SIGNAL),
-                           (1.0, 1, "K = 1.0, n = 1", "#3d5a80"),
+    for K, n, lab, col in [(0.5, 1, "K = 0.5, n = 1", INK),
+                           (1.0, 1, "K = 1.0, n = 1", "#8c8577"),
                            (1.0, 2, "K = 1.0, n = 2 (threshold)", RUST)]:
         hf.add_scatter(x=c, y=[dm.hill(float(v), K, n) for v in c], name=lab,
                        line=dict(color=col, width=2.4))
@@ -180,7 +182,7 @@ with s_tabs[0]:
     with b:
         tm = go.Figure()
         th = np.linspace(0, 1, 100)
-        for tmax, col in [(0.20, "#c9c2b4"), (0.45, SIGNAL), (0.65, INK)]:
+        for tmax, col in [(0.20, "#c9c2b4"), (0.45, INK), (0.65, "#8c8577")]:
             tm.add_scatter(x=th * 100, y=(1 - tmax * th) * 100,
                            name=f"theta_max = {tmax}",
                            line=dict(color=col, width=2.4))
@@ -266,7 +268,7 @@ with s_tabs[3]:
         sub = go.Figure()
         sub.add_bar(x=[f"{k} alone" for k in dm.DOSE_ORDER],
                     y=[per_c[k] * 100 for k in dm.DOSE_ORDER],
-                    marker_color=[COLOR[k] for k in dm.DOSE_ORDER],
+                    marker=ui.bar_marker(dm.DOSE_ORDER),
                     text=[f"{per_c[k] * 100:.0f}%" for k in dm.DOSE_ORDER],
                     textposition="auto", name="alone")
         sub.add_bar(x=["naive sum", "actual, together"],
@@ -304,7 +306,8 @@ with s_tabs[4]:
         H = np.linspace(0, dm.CAPS["H"], 120)
         gf.add_scatter(x=H, y=[(1 - params.eta_H * dm.hill(float(v), params.K_H)) * 100
                                for v in H],
-                       line=dict(color=COLOR["H"], width=2.4), name="humectant gain")
+                       line=dict(color=COLOR["H"], width=2.4, dash="dash"),
+                       name="humectant gain")
         ui.style(gf, 300, showlegend=False,
                  xaxis=dict(title="hyaluronic acid, mg/mL"),
                  yaxis=dict(title="water loss, % of untreated"))
@@ -330,7 +333,7 @@ with s_tabs[5]:
         gs = [dm.optimal_dose(Environment(C_PM=env.C_PM, C_O3=env.C_O3, I_UV=env.I_UV,
                                           PT=env.PT, A0=env.A0, lag_h=float(t)),
                               params)[1] * 100 for t in lag]
-        lf.add_scatter(x=lag, y=gs, line=dict(color=SIGNAL, width=2.4))
+        lf.add_scatter(x=lag, y=gs, line=dict(color=INK, width=2.4))
         ui.style(lf, 300, showlegend=False, xaxis=dict(title="lag, hours"),
                  yaxis=dict(title="protection G, %"))
         st.plotly_chart(lf, width="stretch", key="m_lag",

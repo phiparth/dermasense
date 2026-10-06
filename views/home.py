@@ -108,6 +108,9 @@ st.markdown(
     "sold for skin. All five run through identical equations.</span>",
     unsafe_allow_html=True,
 )
+st.write("")
+ui.legend()
+st.write("")
 
 CARDS = [
     ("P", "Pulcherrimin", "lab", "antioxidant",
@@ -136,11 +139,16 @@ cols = st.columns(len(CARDS))
 for col, (k, name, kind, mech, body) in zip(cols, CARDS):
     tone = COLOR[k]
     tag_bg = "#eef5f3" if kind == "lab" else "#f5f0f8"
+    edge = (f"border-top:3px solid {tone}" if kind == "lab"
+            else f"border:1.5px dashed {tone};border-top:3px dashed {tone}")
     with col:
         st.markdown(
             f"""
-            <div class="card" style="border-top:3px solid {tone}">
-              <div style="font-weight:700;font-size:1.02rem;color:{INK}">{name}</div>
+            <div class="card" style="{edge}">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem">
+                <div style="font-weight:700;font-size:1.02rem;color:{INK}">{name}</div>
+                {ui.chip(k)}
+              </div>
               <div style="margin:.35rem 0 .55rem">
                 <span style="background:{tag_bg};border-radius:999px;padding:.12rem .55rem;
                   font-size:.7rem;font-weight:600;color:{tone}">{kind}</span>
@@ -205,9 +213,9 @@ res = ui.c_evaluate(ui.ekey(e), dose_k, ui.pkey(params))
 # The three arms, each optimised on its own, so every bar is the best that arm
 # can do rather than an arbitrary dose.
 ARMS = [
-    ("Our compounds<br>P + X + L", dm.LAB_KEYS, "#2f6f4f"),
-    (f"Both controls<br>HA + {B.name}", dm.CONTROL_KEYS, COLOR["S"]),
-    ("All five<br>together", dm.ALL_KEYS, INK),
+    ("Our compounds<br>P + X + L", dm.LAB_KEYS, ui.LAB_GROUP),
+    (f"Both controls<br>H + S ({B.name})", dm.CONTROL_KEYS, ui.CONTROL_GROUP),
+    ("All five<br>together", dm.ALL_KEYS, ui.ALL_GROUP),
 ]
 arm_G = {}
 for label, keys, _ in ARMS:
@@ -225,12 +233,8 @@ with right:
             x=[getattr(dose, k) / dm.cap_of(k, params) * 100 for k in keys],
             y=[ui.compound_label(k) for k in keys],
             orientation="h",
-            marker=dict(
-                color=[COLOR[k] for k in keys],
-                # the two controls are hatched, our three are solid
-                pattern=dict(shape=["/" if k in dm.CONTROL_KEYS else "" for k in keys],
-                             fgcolor="white", size=5),
-            ),
+            # the shared rule: lab solid, controls hatched
+            marker=ui.bar_marker(keys),
             text=[f"{getattr(dose, k):.3f} mg/mL" for k in keys],
             textposition="auto",
             hovertemplate="%{y}<br>%{x:.0f}% of its cap<extra></extra>",
@@ -302,35 +306,28 @@ st.subheader("What the model does")
 c1, c2 = st.columns([1.35, 1])
 
 with c1:
-    st.plotly_chart(ui.sankey_figure(res, params, 400), width="stretch",
+    st.plotly_chart(ui.sankey_figure(res, params, 440, d=dose), width="stretch",
                     key="home_sankey", config={"displayModeBar": False})
     st.caption(
         "The oxidative load on this day, in R_gen units, and where each part of it "
-        "ends up. Ozone is the channel that mostly survives: the film barely slows a "
-        "gas, and nothing in the formulation targets ozone specifically."
+        "ends up. Each stage is coloured by the compound doing most of it. Ozone is "
+        "the channel that mostly survives: the film barely slows a gas, and nothing "
+        "in the formulation targets ozone specifically."
     )
 
 with c2:
     st.markdown(
-        """
-Three pollution channels — **particulates, ozone and UV** — drive radical
-production and barrier damage. Six stages then say what the compounds do about
-it, each acting at a different point in the chain:
-
-| stage | what happens | who |
-|---|---|---|
-| S1a | particles stopped at the film | X, L, S |
-| S1b | UV screened | P |
-| S2 | iron chelated, Fenton suppressed | P |
-| S3 | radicals scavenged | X, H, skin |
-| S4 | water held in, or stripped out | H, L, X, S |
-| S5 | the delay between sensing and secreting | all |
-| S6 | the dose harming the skin itself | P, X, L, S |
-
-Because they act at different points, the stages **multiply**. Set every dose to
-zero and the whole thing collapses back to the untreated day exactly — that is
-asserted as a test, not hoped for.
-        """
+        "Three pollution channels, **particulates, ozone and UV**, drive radical "
+        "production. The table reads across from the right-hand side of the flow: "
+        "the same stages, in the same words."
+    )
+    st.markdown(ui.stage_table_html(res, dose, params), unsafe_allow_html=True)
+    st.markdown(
+        "<div style='font-size:.85rem;margin-top:.6rem'>Because they act at different "
+        "points, the stages <b>multiply</b>. Set every dose to zero and the whole "
+        "thing collapses back to the untreated day exactly; that is asserted as a "
+        "test.</div>",
+        unsafe_allow_html=True,
     )
     st.page_link("views/model.py", label="Read the full derivation", icon=":material/functions:")
 

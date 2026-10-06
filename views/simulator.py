@@ -406,6 +406,8 @@ st.markdown(
     "dose, then take the model apart tab by tab.</span>",
     unsafe_allow_html=True,
 )
+st.write("")
+ui.legend()
 
 with st.expander("Inputs: where this day and this skin came from", expanded=True):
     st.markdown("##### Exposure")

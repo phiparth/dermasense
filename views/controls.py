@@ -28,6 +28,8 @@ st.markdown(
     "through the same S1a, S4 and S6 terms.</span>",
     unsafe_allow_html=True,
 )
+st.write("")
+ui.legend()
 
 # ----------------------------------------------------------------------------
 # the pairing, stated before any chart
@@ -155,8 +157,8 @@ ARM_TONE = {
     "Control antioxidant (H)": COLOR["H"],
     "Lab biosurfactants (X + L)": COLOR["X"],
     "Control biosurfactant (S)": COLOR["S"],
-    "Lab formulation (P + X + L)": "#2f6f4f",
-    "Controls only (H + S)": "#8e7cab",
+    "Lab formulation (P + X + L)": ui.LAB_GROUP,
+    "Controls only (H + S)": ui.CONTROL_GROUP,
     "Spec formulation (P + X + L + H)": INK,
     "Everything (P + X + L + H + S)": "#4a5b57",
 }
@@ -300,8 +302,9 @@ st.markdown(
     f"<span style='color:{MUTED}'>Left is efficient (a little mass covers half the "
     "surface). Up is gentle (the skin tolerates a lot of it). The corner you want "
     "is top left, and nothing in the literature sits there: the good film formers "
-    "are toxic, and the gentle ones are weak. Our two compounds are drawn hollow "
-    "because their tolerance is an assumption, not a measurement.</span>",
+    "are toxic, and the gentle ones are weak. Our two compounds are filled and the "
+    "benchmarks outlined, as on every page; the dotted line under each of ours is "
+    "there because its tolerance is an assumption, not a measurement.</span>",
     unsafe_allow_html=True,
 )
 
@@ -310,14 +313,14 @@ b_alone = {}
 for bk, bb in dm.BENCHMARKS.items():
     pp = benchmark_params(bk)
     b_alone[bk] = dm.optimal_dose(env, pp, ("S",))[1]
-tones = {"sophorolipid": "#7a5c99", "rhamnolipid": "#9b4f7d", "surfactin": "#b5446e",
-         "decylglucoside": "#5b7fa6", "sds": "#6b6b6b"}
+tones = {"sophorolipid": COLOR["S"], "rhamnolipid": "#9a7cbb", "surfactin": "#5c3f80",
+         "decylglucoside": "#b29fcf", "sds": "#7a7a7a"}
 for bk, bb in dm.BENCHMARKS.items():
     mp.add_scatter(
         x=[bb.CMC_S], y=[bb.C_crit_S], mode="markers+text", text=[bb.name],
         textposition="top center", textfont=dict(size=11, color=INK),
-        marker=dict(size=14 + 70 * b_alone[bk], color=tones[bk],
-                    line=dict(color="white", width=1.5)),
+        marker=dict(size=14 + 70 * b_alone[bk], color="rgba(255,255,255,0.85)",
+                    line=dict(color=tones[bk], width=2.5)),
         name=bb.name, showlegend=False,
         hovertemplate=(f"{bb.name}<br>CMC {bb.CMC_S:g} mg/mL<br>"
                        f"tolerance {bb.C_crit_S:g} mg/mL<br>"
@@ -326,10 +329,10 @@ for bk, bb in dm.BENCHMARKS.items():
 for k, cmc in (("X", NOMINAL.K_X_ads), ("L", NOMINAL.CMC_L)):
     mp.add_scatter(
         x=[cmc], y=[NOMINAL.C_crit], mode="markers+text",
-        text=[dm.COMPOUND_NAME[k]], textposition="bottom center",
+        text=[f"{dm.COMPOUND_NAME[k]} ({k})"], textposition="bottom center",
         textfont=dict(size=11, color=COLOR[k]),
-        marker=dict(size=18, color="rgba(255,255,255,0.9)", symbol="circle",
-                    line=dict(color=COLOR[k], width=3)),
+        marker=dict(size=18, color=COLOR[k], symbol="circle",
+                    line=dict(color="white", width=1.5)),
         showlegend=False,
         hovertemplate=(f"{dm.COMPOUND_NAME[k]}<br>half-coverage {cmc:g} mg/mL"
                        f"<br>tolerance {NOMINAL.C_crit:g} mg/mL (assumed)<extra></extra>"),

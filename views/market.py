@@ -28,6 +28,8 @@ st.markdown(
     "magnitude above where our evidence stops.</span>",
     unsafe_allow_html=True,
 )
+st.write("")
+ui.legend()
 
 choice = ui.benchmark_picker("mkt", label="Which surfactant the market product uses")
 B = dm.BENCHMARKS[choice]
