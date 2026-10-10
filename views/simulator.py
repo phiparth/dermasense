@@ -873,26 +873,11 @@ with tabs[4]:
               if (df_sp[k].max() - df_sp[k].min()) < 1e-6]
     p_span = (df_sp["P"].max() - df_sp["P"].min()) / CAPS["P"] * 100
     st.markdown(
-        f"<div class='flag'><b>The honest description of this feature.</b> Across "
-        f"this grid {len(pinned)} of 4 coordinates never move at all "
-        f"({', '.join(pinned)}): nothing inside the validity domain penalises "
-        f"them, so the optimiser runs them to the boundary regardless of the "
-        f"weather. Pulcherrimin is the only coordinate that responds, and it "
-        f"moves {p_span:.0f}% of its cap over the whole sweep. Its optimum is set "
-        f"by the S6 reversal threshold, which has no environment dependence; what "
-        f"little movement there is comes through the D_s over RSD(e, 0) ratio and "
-        f"the phototype modifier. So the feature recommends close to one "
-        f"formulation and predicts how well that formulation will do today. G and "
-        f"the absolute RSD genuinely are personalised. \"The model computes your "
-        f"personal optimal dose\" would overclaim.</div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        "<div class='note'><b>If you want the dose to respond to environment</b>, "
-        "you need a penalty that bites inside the domain: lower C_crit below the "
-        "X cap, or give hyaluronic acid a self-toxicity term. Right now neither "
-        "exists, so three of four compounds have nothing to trade off "
-        "against.</div>",
+        f"<div class='flag'><b>The dose barely moves with the weather.</b> "
+        f"{len(pinned)} of 4 coordinates never change across this grid "
+        f"({', '.join(pinned)}), and pulcherrimin moves {p_span:.0f}% of its "
+        f"cap. What changes is how well the formulation is predicted to do "
+        f"today, so G and absolute RSD are personalised and the dose mostly is not.</div>",
         unsafe_allow_html=True,
     )
 
@@ -970,23 +955,16 @@ with tabs[6]:
 
     st.markdown(
         f"<div class='flag'><b>{n_C} of {n_all} constants are class C.</b> "
-        "Four of them, theta_max, assay_xfer, C_crit and kappa_0, account for "
-        "most of the spread in the answer, and three of the four are directly "
-        "measurable with experiments the team could run this year. The count is "
-        "read off the evidence table rather than typed, so it cannot drift as "
-        "the model grows.</div>",
+        "Four of them, theta_max, assay_xfer, C_crit and kappa_0, drive most of "
+        "the spread, and three can be measured with experiments we could run "
+        "this year.</div>",
         unsafe_allow_html=True,
     )
     st.markdown(
-        "<div class='note'><b>The Milani agreement is not a validation.</b> The "
-        "model predicts an 18.7% absolute TEWL improvement at reference against "
-        "Milani's measured 19%, without being tuned to it. But roughly 12 of "
-        "those points come from the humectant and 7 from the film, and Milani's "
-        "serum contains no film-forming surfactant at all. The two numbers are "
-        "not the same number. It validates the scale of the barrier channel, "
-        "that a topical product's effect on TEWL is a sub-20% quantity rather "
-        "than a 50% one. It validates nothing about the shielding "
-        "mechanism.</div>",
+        "<div class='note'><b>Milani is a scale check, not a validation.</b> The "
+        "model predicts an 18.7% TEWL improvement against Milani's measured 19%, "
+        "but Milani's serum has no film-forming surfactant, so this supports the "
+        "size of the barrier channel and nothing about the shielding mechanism.</div>",
         unsafe_allow_html=True,
     )
 

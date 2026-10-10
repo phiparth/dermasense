@@ -40,7 +40,7 @@ with p1:
     st.markdown(
         f"""
         <div class="card" style="border-top:3px solid {COLOR['H']}">
-          <div style="font-weight:700">Antioxidant arm &mdash; already controlled</div>
+          <div style="font-weight:700">Antioxidant arm: already controlled</div>
           <div style="font-size:.88rem;color:#3b4441;line-height:1.55;margin-top:.4rem">
           <b>Pulcherrimin</b> against <b>hyaluronic acid</b>. Both are scored through
           S3 competitive scavenging with one shared denominator, and hyaluronic acid
@@ -55,7 +55,7 @@ with p2:
     st.markdown(
         f"""
         <div class="card" style="border-top:3px solid {COLOR['S']}">
-          <div style="font-weight:700">Biosurfactant arm &mdash; the control added here</div>
+          <div style="font-weight:700">Biosurfactant arm: the control added here</div>
           <div style="font-size:.88rem;color:#3b4441;line-height:1.55;margin-top:.4rem">
           <b>Xylolipid + lyso-ornithine lipid</b> against a <b>benchmark surfactant</b>
           occupying the same interface. It enters the same competitive Langmuir term
@@ -102,16 +102,8 @@ with st.expander("Where these constants come from"):
         st.markdown(f"- {s}")
     st.caption(
         "C_crit_S is the measured keratinocyte half-effect concentration wherever "
-        "one exists, and it feeds the stripping onset and the self-toxicity half "
-        "point exactly as the lab surfactants' single C_crit does. The stripping "
-        "slope is set equal to ours: a control tuned to lose is not a control, so "
-        "where the evidence is silent the two arms get the same number."
-    )
-    st.caption(
-        "The asymmetry to keep in view: the control's tolerance is measured on "
-        "keratinocytes, ours is assumed, because xylolipid and lyso-ornithine lipid "
-        "have never touched one. The what-if near the end of this page lets you "
-        "change that assumption."
+        "one exists. The stripping slope is set equal to ours, so where the "
+        "evidence is silent both arms get the same number."
     )
 
 # ----------------------------------------------------------------------------
@@ -276,19 +268,16 @@ with cc2:
 **{eq['theta_lab'] * 100:.1f}%** of the interface using **{eq['lab_mass']:.3f} mg/mL**
 of material. Reproducing that coverage with {B.name.lower()} alone takes
 **{eq['S_equivalent']:.2f} mg/mL**, about **{eq['mass_ratio']:.0f}x the mass**
-{'&mdash; which is above its own safe-use cap, so it cannot get there at all.'
- if not eq['within_S_cap'] else '&mdash; still inside its safe-use cap.'}
+{', which is above its own safe-use cap, so it cannot get there at all.'
+ if not eq['within_S_cap'] else ', still inside its safe-use cap.'}
         """,
         unsafe_allow_html=True,
     )
 
 ui.flag(
-    "<b>This comparison is only as good as K_X_ads and CMC_S.</b> The "
-    "lyso-ornithine lipid constant is class A, measured. The xylolipid one is "
-    "inferred, class C. If the real xylolipid constant is ten times larger, the "
-    "curve above slides right and the mass advantage shrinks with it. Measuring "
-    "the two lab surfactants' CMCs is a single afternoon of tensiometry, and it "
-    "would turn this chart from an argument into a result."
+    "<b>This rests on K_X_ads and CMC_S.</b> The lyso-ornithine lipid constant "
+    "is measured; the xylolipid one is inferred. Tensiometry on both would "
+    "turn this chart from an argument into a result."
 )
 
 st.divider()
@@ -299,12 +288,10 @@ st.divider()
 
 st.subheader("Every film former on one map: efficiency against tolerance")
 st.markdown(
-    f"<span style='color:{MUTED}'>Left is efficient (a little mass covers half the "
-    "surface). Up is gentle (the skin tolerates a lot of it). The corner you want "
-    "is top left, and nothing in the literature sits there: the good film formers "
-    "are toxic, and the gentle ones are weak. Our two compounds are filled and the "
-    "benchmarks outlined, as on every page; the dotted line under each of ours is "
-    "there because its tolerance is an assumption, not a measurement.</span>",
+    f"<span style='color:{MUTED}'>Left is efficient, up is gentle. Nothing in the "
+    "literature sits top left: the good film formers are toxic and the gentle "
+    "ones are weak. Our compounds are filled; the dotted line marks that their "
+    "tolerance is assumed.</span>",
     unsafe_allow_html=True,
 )
 
@@ -347,10 +334,8 @@ ui.style(mp, 470,
                     range=[-1.4, 1.7]))
 st.plotly_chart(mp, width="stretch", key="ctl_map", config={"displayModeBar": False})
 st.caption(
-    "Bubble size is each benchmark's own best protection, optimised alone. The "
-    "dotted line under each lab compound runs down to surfactin's measured "
-    "tolerance: that is how far our assumption could be wrong if they turn out to "
-    "be as toxic as the harshest biosurfactant on the map."
+    "Bubble size is each benchmark's best protection, optimised alone. The dotted "
+    "line under each lab compound runs down to surfactin's measured tolerance."
 )
 
 ui.note(
@@ -481,16 +466,14 @@ st.plotly_chart(mf, width="stretch", key="ctl_margin",
 crosses = any(m <= 0 for m in margin)
 if crosses:
     ui.flag(
-        "<b>The margin crosses zero inside the band.</b> There is a value of "
-        "K_X_ads, well inside what the evidence allows, at which the control wins. "
-        "Until that constant is measured, the honest claim is that the lab pair is "
-        "competitive with an established cosmetic biosurfactant, not that it beats it."
+        "<b>The margin crosses zero inside the band.</b> For some values of "
+        "K_X_ads the evidence allows, the control wins, so the claim is that the "
+        "lab pair is competitive with it, not better."
     )
 else:
     ui.note(
         "<b>The margin never reaches zero across the band.</b> The lab pair stays "
-        "ahead of this control for every value of K_X_ads the evidence allows, which "
-        "is the strongest form this claim can take while the constant is unmeasured."
+        "ahead of this control for every K_X_ads the evidence allows."
     )
 
 st.divider()
@@ -502,9 +485,9 @@ st.divider()
 st.subheader("What if our surfactants turn out to be as toxic as the controls?")
 st.markdown(
     f"<span style='color:{MUTED}'>The control's tolerance is measured; the lab "
-    "pair's is assumed to be 1 mg/mL. Move it. The two vertical lines are the "
-    "measured keratinocyte tolerances of surfactin and rhamnolipid, the two harshest "
-    "biosurfactants anyone has put on HaCaT cells.</span>",
+    "pair's is assumed to be 1 mg/mL. The vertical lines are the measured "
+    "tolerances of surfactin and rhamnolipid, the harshest biosurfactants "
+    "tested on HaCaT cells.</span>",
     unsafe_allow_html=True,
 )
 
@@ -539,15 +522,13 @@ if g_rl < ctl_line:
     ui.flag(
         f"<b>If our surfactants are as toxic as rhamnolipid, the lab pair drops to "
         f"{g_rl:.1f}% and loses to the {B.name.lower()} ({ctl_line:.1f}%).</b> "
-        "The headline lead on the film side depends on an assumption nobody has "
-        "tested. An MTT series on HaCaT cells would turn it into a number."
+        "An MTT series on HaCaT cells would settle it."
     )
 else:
     ui.note(
         f"<b>Even at rhamnolipid's tolerance the lab pair holds {g_rl:.1f}%</b> "
         f"against the {B.name.lower()}'s {ctl_line:.1f}%, and {g_sf:.1f}% at "
-        "surfactin's. The lead survives the harshest measured tolerance, because "
-        "the film saturates at a dose well below where the penalty starts."
+        "surfactin's."
     )
 
 st.divider()
@@ -565,9 +546,7 @@ with e1:
         <div class="card" style="border-top:3px solid {SIGNAL}">
         <b>1. Tensiometry, both lab surfactants</b>
         <div style="font-size:.87rem;color:#3b4441;line-height:1.5;margin-top:.4rem">
-        A du Nouy ring and a dilution series gives CMC directly. It replaces the one
-        class C constant that the entire mass-efficiency argument on this page rests
-        on. Half a day.</div></div>
+        A du Nouy ring and a dilution series gives CMC directly. Half a day.</div></div>
         """, unsafe_allow_html=True)
 with e2:
     st.markdown(
@@ -575,9 +554,8 @@ with e2:
         <div class="card" style="border-top:3px solid {SIGNAL}">
         <b>2. Particle interception, side by side</b>
         <div style="font-size:.87rem;color:#3b4441;line-height:1.5;margin-top:.4rem">
-        Reference PM2.5 onto coated and uncoated membranes, count what penetrates.
-        Measures theta_max, the biggest lever in the model, and does it for our
-        surfactants and the control in the same run.</div></div>
+        Reference PM2.5 onto coated and uncoated membranes. Measures theta_max, the
+        biggest lever in the model.</div></div>
         """, unsafe_allow_html=True)
 with e3:
     st.markdown(
@@ -585,9 +563,8 @@ with e3:
         <div class="card" style="border-top:3px solid {SIGNAL}">
         <b>3. Keratinocyte viability, matched concentrations</b>
         <div style="font-size:.87rem;color:#3b4441;line-height:1.5;margin-top:.4rem">
-        The control has this data and our compounds do not, which is the real
-        asymmetry between the arms. An MTT series against the same cells at the same
-        concentrations closes it.</div></div>
+        The control has this data and ours does not. An MTT series on the same
+        cells at matched concentrations closes the gap.</div></div>
         """, unsafe_allow_html=True)
 
 st.caption(

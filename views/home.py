@@ -45,7 +45,7 @@ st.markdown(
         A living moisturiser that reads the air. An engineered skin microbe senses the
         day's oxidative stress and answers with a red antioxidant pigment and two
         film-forming biosurfactants. This site is the model that decides how much of
-        each &mdash; and says plainly how sure it is of every number.
+        each, and says plainly how sure it is of every number.
       </div>
       <div>
         <span class="ds-badge">Pulcherrimin &middot; antioxidant</span>
@@ -120,7 +120,7 @@ CARDS = [
     ("X", "Xylolipid", "lab", "biosurfactant",
      "Spreads at the skin-air interface and intercepts particles before they land. "
      "Also scavenges radicals directly. Its evidence base is a fruit-juice "
-     "preservation study, which is the honest limit of what we can claim."),
+     "preservation study, so treat its claim with care."),
     ("L", "Lyso-ornithine lipid", "lab", "biosurfactant",
      "The second film former, effective at a far lower concentration than the first. "
      "Its ceiling here is what the strain can secrete, 10 mg/L, not a measured "
@@ -277,22 +277,17 @@ with right:
     )
 
 ui.note(
-    f"<b>Both controls are in the dose table: hyaluronic acid on the antioxidant "
-    f"side, {B.name.lower()} on the film side.</b> Read the control surfactant's "
-    "number loosely, though. Our two film formers already cover about 96% of the "
-    "interface, so a third one changes protection by less than a hundredth of a "
-    "point anywhere between zero and its cap. The optimiser has to return "
-    "something, and on a plateau that something is close to arbitrary. The arms "
-    "chart on the left is the comparison that carries weight, because there each "
-    "arm is built from scratch."
+    f"<b>Read the control surfactant's dose loosely.</b> Our two film formers "
+    "already cover about 96% of the interface, so a third changes protection by "
+    "less than a hundredth of a point. The arms chart on the left is the "
+    "comparison that carries weight."
 )
 
 ui.flag(
-    f"<b>Protection is a ratio, so read it with the absolute number.</b> This day "
-    f"scores G = {G * 100:.1f}% against RSD {res['RSD0']:.2f} untreated. Compromised "
-    "skin scores a <i>higher</i> G and higher absolute damage at once, because a "
-    "smaller reserve of its own leaves more room for the applied compounds to win. "
-    "Quoted alone, G would recommend less product for the skin that needs more."
+    f"<b>Protection is a ratio, so read it with the absolute damage.</b> "
+    f"This day scores G = {G * 100:.1f}% against RSD {res['RSD0']:.2f} "
+    "untreated. Compromised skin scores a <i>higher</i> G and higher damage at "
+    "once, so G alone would suggest less product for the skin that needs more."
 )
 
 st.divider()
@@ -337,41 +332,11 @@ st.divider()
 # honesty section + navigation
 # ----------------------------------------------------------------------------
 
-st.subheader("What this model cannot tell you")
-
-_ref_total = dm.formulation_ratio(Dose(*_ref_dose_k))["total"]
-
-k1, k2, k3 = st.columns(3)
-with k1:
-    ui.flag(
-        "<b>Three of four doses are not recommendations.</b> Only pulcherrimin has an "
-        "interior optimum. The rest sit on their caps because nothing inside the "
-        "validity domain penalises them — that is the model saying the evidence ran "
-        "out, not that this is the right amount."
-    )
-with k2:
-    ui.flag(
-        "<b>The best-evidenced compound contributes the least.</b> Pulcherrimin has "
-        "human keratinocyte data. The two biosurfactants, which carry most of the "
-        "headline number, have never touched a keratinocyte in the published record."
-    )
-with k3:
-    ui.flag(
-        f"<b>Our dose is tiny next to the market.</b> The whole formulation is "
-        f"about {_ref_total / dm.PCT_TO_MG_PER_ML:.2f} % by weight, at or below the "
-        "bottom of every published commercial range, and a vitamin C serum carries "
-        "a hundred times the antioxidant mass. The case has to be that this "
-        "responds to the day, not that it delivers more."
-    )
-
-st.write("")
-with st.container():
-    ui.flag(
-        "<b>One unmeasured constant dominates.</b> theta_max, the fraction of "
-        "particles a saturated film can stop, moves the answer by more than twenty "
-        "points across its plausible range. Nobody has measured it. That experiment "
-        "is a membrane, some reference dust and a particle counter."
-    )
+ui.flag(
+    "<b>Read the doses with care.</b> Only pulcherrimin has an interior optimum. "
+    "The other three sit on their caps because nothing in the tested range "
+    "penalises them, so they mark the edge of the evidence, not a recommendation."
+)
 
 st.write("")
 n1, n2, n3, n4 = st.columns(4)

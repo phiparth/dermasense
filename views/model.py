@@ -46,7 +46,7 @@ A saturating response. Doubling the dose stops doubling the effect once the
 sites are full, which is how every biological binding, adsorption and
 antioxidant response actually behaves.
 
-`K` is the concentration at half effect — the only number that matters for
+`K` is the concentration at half effect, the only number that matters for
 comparing two compounds doing the same job. `n` is cooperativity, and is 1
 everywhere except the self-toxicity term, where a threshold that turns on
 sharply is the point.
@@ -94,7 +94,7 @@ d1, d2 = st.columns([1.1, 1])
 with d1:
     st.markdown(
         """
-`f_PT` is the phototype modifier, and it acts on the **UV channel only** —
+`f_PT` is the phototype modifier, and it acts on the **UV channel only**, since
 melanin does not protect against ozone.
 
 Weights: particulates carry the most mass; the ozone weight is anchored to He
@@ -102,7 +102,7 @@ et al. (2006), who measured ozone-driven radical generation; UV is smallest
 because most of its damage is already inside the photodamage term.
 
 The skin then fights back. Its own antioxidant reserve `kappa_endo` depletes as
-the load rises — the worse the day, the less reserve is left, which is why
+the load rises. The worse the day, the less reserve is left, which is why
 damage grows faster than exposure does:
         """
     )
@@ -161,7 +161,7 @@ s_tabs = st.tabs(["S1a film", "S1b UV screen", "S2 iron", "S3 scavenging",
 with s_tabs[0]:
     a, b = st.columns([1, 1.2])
     with a:
-        st.markdown("**Interfacial shielding** — xylolipid, lyso-ornithine lipid, "
+        st.markdown("**Interfacial shielding:** xylolipid, lyso-ornithine lipid, "
                     "and the control surfactant, all competing for one surface.")
         st.latex(r"\theta = \frac{L/CMC_L + X/K_X + S/CMC_S}"
                  r"{1 + L/CMC_L + X/K_X + S/CMC_S}")
@@ -195,7 +195,7 @@ with s_tabs[0]:
 with s_tabs[1]:
     a, b = st.columns([1, 1.2])
     with a:
-        st.markdown("**UV screening** — pulcherrimin absorbs, so less UV arrives.")
+        st.markdown("**UV screening:** pulcherrimin absorbs, so less UV arrives.")
         st.latex(r"SPF(P) = 1 + \epsilon_{film}\,a_{SPF}\,P,"
                  r"\qquad \tilde{I}_{UV} = \frac{I_{UV}}{SPF(P)}")
         st.markdown(
@@ -217,7 +217,7 @@ with s_tabs[1]:
                         config={"displayModeBar": False})
 
 with s_tabs[2]:
-    st.markdown("**Fenton suppression** — pulcherrimin chelates the iron that "
+    st.markdown("**Fenton suppression:** pulcherrimin chelates the iron that "
                 "particulates carry, upstream of any radical being made.")
     st.latex(r"\chi = E_{chel}\,H(P; K_{chel}),\qquad"
              r"\tilde{R}_{gen} = w_{PM}\tilde{p}\left(1 - \phi_{Fe}\chi\right)"
@@ -243,7 +243,7 @@ with s_tabs[2]:
                         config={"displayModeBar": False})
 
 with s_tabs[3]:
-    st.markdown("**Competitive radical scavenging** — everything that scavenges "
+    st.markdown("**Competitive radical scavenging:** everything that scavenges "
                 "shares one denominator, including the skin itself.")
     st.latex(r"\kappa_{app} = \eta\,\psi\left(k_X X + k_H H\right),\qquad"
              r"\Phi_{scav} = \frac{1}{1 + \kappa_{endo} + \kappa_{app}}")
@@ -281,7 +281,7 @@ with s_tabs[3]:
                         config={"displayModeBar": False})
 
 with s_tabs[4]:
-    st.markdown("**Barrier modulation** — hyaluronic acid holds water in; a "
+    st.markdown("**Barrier modulation:** hyaluronic acid holds water in; a "
                 "surfactant past its threshold strips lipids out.")
     st.latex(r"\Gamma_H = 1 - \eta_H H(H; K_H),\qquad"
              r"\Psi = 1 + s\sum_i \max(0,\, c_i - C_{crit,i})")
@@ -315,7 +315,7 @@ with s_tabs[4]:
                         config={"displayModeBar": False})
 
 with s_tabs[5]:
-    st.markdown("**Delivery timing** — the price of sensing before secreting.")
+    st.markdown("**Delivery timing:** the price of sensing before secreting.")
     st.latex(r"\eta(t) = \eta_{post} + (1 - \eta_{post})e^{-t/\tau},"
              r"\qquad D_\eta[\phi] = 1 - \eta(1 - \phi)")
     a, b = st.columns([1, 1.2])
@@ -323,7 +323,7 @@ with s_tabs[5]:
         st.markdown(
             "The OxyR circuit fires *after* stress begins, so what the system "
             "delivers is a post-treatment, not a pre-treatment. The discount scales "
-            "the protective part — the distance from 1 — rather than the value "
+            "the protective part (the distance from 1) rather than the value "
             "itself. Multiplying a protection factor directly would manufacture "
             "protection out of nothing whenever the factor is already 1."
         )
@@ -338,11 +338,11 @@ with s_tabs[5]:
                  yaxis=dict(title="protection G, %"))
         st.plotly_chart(lf, width="stretch", key="m_lag",
                         config={"displayModeBar": False})
-        st.caption("Worth about three points of G across the whole range — real, "
+        st.caption("Worth about three points of G across the whole range: real, "
                    "but not the thing that decides whether this works.")
 
 with s_tabs[6]:
-    st.markdown("**Self-toxicity** — the reason a recommended dose exists at all.")
+    st.markdown("**Self-toxicity:** the reason a recommended dose exists at all.")
     st.latex(r"\Omega = \rho_P H(P; C_{horm}, 2) + s\,H(X; C_{crit}, 2)"
              r" + s\,H(L; C_{crit}, 2) + s_S H(S; C_{crit,S}, 2)")
     st.latex(r"RSD = w_{ox}R' + (1 - w_{ox})B' + \Omega D_s")
@@ -447,44 +447,10 @@ st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch", height=380)
 
 ui.flag(
     "<b>Four class C constants carry most of the spread:</b> theta_max, "
-    "assay_xfer, C_crit and kappa_0. Three of the four are directly measurable "
-    "with experiments this team could run inside a year, which is the useful "
-    "output of an uncertainty analysis — not an error bar, a to-do list. The "
-    "<b>Uncertainty</b> tab of the simulator recomputes that ranking for whatever "
-    "day is loaded, so the priorities are derived rather than quoted."
+    "assay_xfer, C_crit and kappa_0. Three of them can be measured with "
+    "experiments this team could run within a year. The <b>Uncertainty</b> "
+    "tab of the simulator recomputes the ranking for whatever day is loaded."
 )
-
-st.divider()
-
-st.subheader("6. What this model is not")
-
-l1, l2 = st.columns(2)
-with l1:
-    st.markdown(
-        """
-- Both lab biosurfactants are extrapolated from a **fruit-juice preservation**
-  study and a **crude-oil emulsification** study. Neither has met a keratinocyte
-  in the published record, yet together they carry most of the headline number.
-- The Milani agreement (18.7% predicted against 19% measured) validates the
-  **scale of the barrier channel**, nothing about the shielding mechanism —
-  Milani's serum contains no film-forming surfactant at all.
-- Channels **add** rather than multiply, so UV and ozone synergy is ignored.
-  This under-predicts damage under simultaneous exposure.
-        """
-    )
-with l2:
-    st.markdown(
-        """
-- Concentration in a film is assumed to be the right variable, rather than a
-  surface density in mg/cm2, and film thickness is assumed identical across
-  people. No source examines either assumption.
-- `alpha_PM` is fitted over roughly 30 to 100 ug/m3. At Delhi winter levels the
-  barrier channel is **extrapolating**.
-- The live feed is a CAMS grid cell, not the air this person is breathing.
-  Indoors, in traffic, or twenty floors up, it is wrong in a direction the app
-  cannot see.
-        """
-    )
 
 st.caption(
     "iGEM IIT Delhi 2026 - DermaSense. Model outputs are predictions from a "

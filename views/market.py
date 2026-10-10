@@ -229,7 +229,7 @@ sits inside our validity domain and the two scores agree exactly: G =
 **{by['low']['G_raw'] * 100:.1f}%**. Nothing is being extrapolated.
 
 At the **high** end, {high['H']:.0f} and {high['S']:.0f} mg/mL, the model as
-written returns **{high['G_raw'] * 100:.0f}%** &mdash; a catastrophe, with the
+written returns **{high['G_raw'] * 100:.0f}%**, a catastrophe, with the
 stripping term at Psi = {high['Psi']:.1f} and water loss several times worse
 than doing nothing.
 
@@ -371,30 +371,14 @@ st.divider()
 # 6. honest summary
 # ----------------------------------------------------------------------------
 
-st.subheader("What this comparison does and does not establish")
+st.subheader("What the comparison shows")
 
-h1, h2, h3 = st.columns(3)
-with h1:
-    ui.note(
-        "<b>Established: our dose is small.</b> The recommendation is about "
-        f"{lab_ratio['total'] / dm.PCT_TO_MG_PER_ML:.2f} % by weight, at or below "
-        "the bottom of every published commercial range. Whatever else is "
-        "uncertain, we are not proposing to put a lot of material on anybody."
-    )
-with h2:
-    ui.flag(
-        "<b>Not established: that we beat a market product.</b> The low-end "
-        "comparison is a like-for-like the model can support. The typical and high "
-        "ones are extrapolations, and the headline antioxidants of the category "
-        "cannot enter the model at all."
-    )
-with h3:
-    ui.flag(
-        "<b>Not established: that more would be worse.</b> The high-end collapse "
-        "is the stripping term running away outside its fitted range, not a "
-        "prediction about real products. Fixing it needs a saturating stripping "
-        "term and a measurement to fit it to."
-    )
+ui.note(
+    "<b>Our dose is small, and only the low-end row is a like-for-like.</b> "
+    f"The recommendation is about {lab_ratio['total'] / dm.PCT_TO_MG_PER_ML:.2f} % by weight, "
+    "at or below the bottom of every published commercial range. The typical and "
+    "high rows are extrapolations, so they show scale rather than a score."
+)
 
 st.caption(
     "iGEM IIT Delhi 2026 - DermaSense. Market concentration ranges are from "
