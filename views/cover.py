@@ -213,7 +213,7 @@ def bubble(i, title, body, keys):
 
 
 NOVELTY_HTML = (
-    "<div class='nv'><div class='nv-head'>What this does that nothing else does</div>"
+    "<div class='nv'><div class='nv-head'>Novel points</div>"
     + "".join(bubble(i, t, b, k) for i, (t, b, k) in enumerate(NOVELTY, 1))
     + "</div>"
 )
