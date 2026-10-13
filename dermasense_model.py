@@ -325,6 +325,8 @@ BENCHMARKS: Dict[str, Benchmark] = {
     ),
 }
 DEFAULT_BENCHMARK = "sophorolipid"
+# the S slot is named after the surfactant actually in it, not a generic label
+COMPOUND_NAME["S"] = BENCHMARKS[DEFAULT_BENCHMARK].name
 
 
 def benchmark_params(key: str, p: "Params | None" = None) -> "Params":

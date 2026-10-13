@@ -129,10 +129,9 @@ CARDS = [
      "The comparator everyone already knows. Holds water in the stratum corneum and "
      "mops up radicals. It is in the formulation and in the control column at once: "
      "it is what a buyer would otherwise be putting on."),
-    ("S", "Benchmark biosurfactant", "control", "biosurfactant",
-     "The control we added for the film side: acidic sophorolipid, a cosmetic "
-     "glycolipid with real human skin data, or SDS as a negative control. Same "
-     "shielding, stripping and self-toxicity terms as ours."),
+    ("S", ui.benchmark().name, "control", "biosurfactant",
+     "The control we added for the film side, run through the same shielding, "
+     "stripping and self-toxicity terms as ours."),
 ]
 
 cols = st.columns(len(CARDS))
@@ -352,9 +351,3 @@ with n3:
 with n4:
     st.page_link("views/model.py", label="How the model works",
                  icon=":material/functions:")
-
-st.caption(
-    "iGEM IIT Delhi 2026 - DermaSense. Model outputs are predictions from a "
-    "parameterised cascade. They are not clinical guidance and not a formulation "
-    "instruction."
-)

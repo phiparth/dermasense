@@ -57,7 +57,7 @@ with p2:
         <div class="card" style="border-top:3px solid {COLOR['S']}">
           <div style="font-weight:700">Biosurfactant arm: the control added here</div>
           <div style="font-size:.88rem;color:#3b4441;line-height:1.55;margin-top:.4rem">
-          <b>Xylolipid + lyso-ornithine lipid</b> against a <b>benchmark surfactant</b>
+          <b>Xylolipid + lyso-ornithine lipid</b> against <b>{ui.benchmark().name.lower()}</b>
           occupying the same interface. It enters the same competitive Langmuir term
           for coverage, the same stripping term in S4 and the same self-toxicity term
           in S6. Only its three constants differ.</div>
@@ -566,9 +566,3 @@ with e3:
         The control has this data and ours does not. An MTT series on the same
         cells at matched concentrations closes the gap.</div></div>
         """, unsafe_allow_html=True)
-
-st.caption(
-    "iGEM IIT Delhi 2026 - DermaSense. The control arm runs through identical "
-    "equations; only its four constants differ, and each is labelled with its "
-    "evidence class."
-)

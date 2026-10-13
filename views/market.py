@@ -379,10 +379,3 @@ ui.note(
     "at or below the bottom of every published commercial range. The typical and "
     "high rows are extrapolations, so they show scale rather than a score."
 )
-
-st.caption(
-    "iGEM IIT Delhi 2026 - DermaSense. Market concentration ranges are from "
-    "published patents, the Cosmetic Ingredient Review and manufacturers' own "
-    "stated formulations; every one is cited on this page. Model outputs are "
-    "predictions from a parameterised cascade, not clinical guidance."
-)

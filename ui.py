@@ -55,8 +55,13 @@ ABBREV = {
     "X": ("Xylolipid", "lab"),
     "L": ("Lyso-ornithine Lipid", "lab"),
     "H": ("Hyaluronic acid", "control"),
-    "S": ("benchmark Surfactant", "control"),
+    "S": ("Control biosurfactant", "control"),
 }
+
+
+def _abbrev_name(k: str) -> str:
+    """Name behind a letter; S is whichever benchmark is selected."""
+    return benchmark().name if k == "S" else ABBREV[k][0]
 
 
 def is_control(k: str) -> bool:
@@ -79,7 +84,7 @@ def chip(k: str, size: str = "0.78rem") -> str:
         style = (f"color:{c};background:transparent;border:1.5px dashed {c};")
     else:
         style = f"color:#ffffff;background:{c};border:1.5px solid {c};"
-    return (f"<span title='{ABBREV[k][0]}' style='{style}display:inline-block;"
+    return (f"<span title='{_abbrev_name(k)}' style='{style}display:inline-block;"
             f"min-width:1.55em;text-align:center;border-radius:6px;font-weight:700;"
             f"font-size:{size};line-height:1.45;padding:0 .3em;margin-right:.25em;"
             f"font-family:ui-monospace,Consolas,monospace'>{k}</span>")
@@ -97,7 +102,10 @@ def legend_html(compact: bool = False) -> str:
         if k == "L":
             label = "Lyso-ornithine <b><u>L</u></b>ipid"
         elif k == "S":
-            label = "benchmark <b><u>S</u></b>urfactant"
+            nm = benchmark().name
+            i = next((j for j, ch in enumerate(nm) if ch in "sS"), -1)
+            label = (f"{nm[:i]}<b><u>{nm[i]}</u></b>{nm[i + 1:]}" if i >= 0
+                     else f"{nm} (S)")
         else:
             label = f"<b><u>{name[0]}</u></b>{name[1:]}"
         items.append(f"<span style='white-space:nowrap;margin-right:1.1rem'>"
@@ -239,7 +247,7 @@ def benchmark_key() -> str:
 
 
 def benchmark_picker(where: str, *, kind: str = "select", container=None,
-                     label: str = "Benchmark biosurfactant (S)", **kw) -> str:
+                     label: str = "Control biosurfactant (S)", **kw) -> str:
     """One picker for the S slot, usable on any page. `where` makes the widget
     key unique per page; the choice itself is shared."""
     c = container or st

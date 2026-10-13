@@ -967,10 +967,3 @@ with tabs[6]:
         "size of the barrier channel and nothing about the shielding mechanism.</div>",
         unsafe_allow_html=True,
     )
-
-st.markdown("---")
-st.caption(
-    "iGEM IIT Delhi 2026 - DermaSense v3. Every equation in this app corresponds "
-    "one-to-one with a section of the unified specification. Model outputs are "
-    "predictions from a parameterised cascade, not clinical guidance."
-)

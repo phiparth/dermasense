@@ -451,9 +451,3 @@ ui.flag(
     "experiments this team could run within a year. The <b>Uncertainty</b> "
     "tab of the simulator recomputes the ranking for whatever day is loaded."
 )
-
-st.caption(
-    "iGEM IIT Delhi 2026 - DermaSense. Model outputs are predictions from a "
-    "parameterised cascade. They are not clinical guidance and not a formulation "
-    "instruction."
-)
